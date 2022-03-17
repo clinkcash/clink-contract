@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://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@github.com/clinkfi/clink-contract.git"
+    "url": "git+https://github.com/clinkfi/clink-contract.git"
   },
   "author": "",
   "license": "ISC",
@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/clinkfi/clink-contract#readme",
   "devDependencies": {
+    "@boringcrypto/boring-solidity": "boringcrypto/BoringSolidity#51616f5bbab53adaf6379428de08c9d8093c63f5",
     "@nomiclabs/hardhat-ethers": "^2.0.5",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "chai": "^4.3.6",
