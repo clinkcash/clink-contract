@@ -1,29 +1,26 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.12;
-pragma experimental ABIEncoderV2;
-import "@boringcrypto/boring-solidity/contracts/libraries/BoringMath.sol";
-import "@boringcrypto/boring-solidity/contracts/BoringOwnable.sol";
-import "@boringcrypto/boring-solidity/contracts/ERC20.sol";
-import "@boringcrypto/boring-solidity/contracts/interfaces/IMasterContract.sol";
-import "@boringcrypto/boring-solidity/contracts/libraries/BoringRebase.sol";
-import "@boringcrypto/boring-solidity/contracts/libraries/BoringERC20.sol";
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./Clink.sol";
 import "./interfaces/ITokenVault.sol";
 import "./interfaces/IOracle.sol";
 import "./interfaces/ISwapper.sol";
+import "./interfaces/IInitialization.sol";
+import "./libraries/AssetInfoLibrary.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-// solhint-disable avoid-low-level-calls
-// solhint-disable no-inline-assembly
 
 /// @title Core
 /// @dev This contract allows contract calls to any contract (except TokenVault)
 /// from arbitrary callers thus, don't trust calls from this contract in any circumstances.
-contract Core is BoringOwnable, IMasterContract {
-    using BoringMath for uint256;
-    using BoringMath128 for uint128;
-    using RebaseLibrary for Rebase;
-    using BoringERC20 for IERC20;
+contract Core is Ownable, IInitialization {
+    using AssetInfoLibrary for AssetInfo;
+    using SafeERC20 for IERC20;
+    using SafeCast for uint256;
 
     event LogExchangeRate(uint256 rate);
     event LogAccrue(uint128 accruedAmount);
@@ -50,7 +47,7 @@ contract Core is BoringOwnable, IMasterContract {
 
     // Total amounts
     uint256 public totalCollateralShare; // Total collateral supplied
-    Rebase public totalBorrow; // elastic = Total token amount to be repayed by borrowers, base = Total parts of the debt held by borrowers
+    AssetInfo public totalBorrow; // amount = Total token amount to be repayed by borrowers, share = Total parts of the debt held by borrowers
 
     // User balances
     mapping(address => uint256) public userCollateralShare;
@@ -74,7 +71,7 @@ contract Core is BoringOwnable, IMasterContract {
 
     uint256 private constant EXCHANGE_RATE_PRECISION = 1e18;
 
-    uint256 public LIQUIDATION_MULTIPLIER; 
+    uint256 public LIQUIDATION_MULTIPLIER;
     uint256 private constant LIQUIDATION_MULTIPLIER_PRECISION = 1e5;
 
     uint256 public BORROW_OPENING_FEE;
@@ -108,17 +105,17 @@ contract Core is BoringOwnable, IMasterContract {
         }
         _accrueInfo.lastAccrued = uint64(block.timestamp);
 
-        Rebase memory _totalBorrow = totalBorrow;
-        if (_totalBorrow.base == 0) {
+        AssetInfo memory _totalBorrow = totalBorrow;
+        if (_totalBorrow.share == 0) {
             accrueInfo = _accrueInfo;
             return;
         }
 
         // Accrue interest
-        uint128 extraAmount = (uint256(_totalBorrow.elastic).mul(_accrueInfo.INTEREST_PER_SECOND).mul(elapsedTime) / 1e18).to128();
-        _totalBorrow.elastic = _totalBorrow.elastic.add(extraAmount);
+        uint128 extraAmount = (uint256(_totalBorrow.amount) * _accrueInfo.INTEREST_PER_SECOND * elapsedTime / 1e18).toUint128();
+        _totalBorrow.amount += extraAmount;
 
-        _accrueInfo.feesEarned = _accrueInfo.feesEarned.add(extraAmount);
+        _accrueInfo.feesEarned += extraAmount;
         totalBorrow = _totalBorrow;
         accrueInfo = _accrueInfo;
 
@@ -134,16 +131,16 @@ contract Core is BoringOwnable, IMasterContract {
         uint256 collateralShare = userCollateralShare[user];
         if (collateralShare == 0) return false;
 
-        Rebase memory _totalBorrow = totalBorrow;
+        AssetInfo memory _totalBorrow = totalBorrow;
 
         return
-            tokenVault.toAmount(
-                collateral,
-                collateralShare.mul(EXCHANGE_RATE_PRECISION / COLLATERIZATION_RATE_PRECISION).mul(COLLATERIZATION_RATE),
-                false
-            ) >=
-            // Moved exchangeRate here instead of dividing the other side to preserve more precision
-            borrowPart.mul(_totalBorrow.elastic).mul(_exchangeRate) / _totalBorrow.base;
+        tokenVault.toAmount(
+            collateral,
+            collateralShare * (EXCHANGE_RATE_PRECISION / COLLATERIZATION_RATE_PRECISION) * COLLATERIZATION_RATE,
+            false
+        ) >=
+        // Moved exchangeRate here instead of dividing the other side to preserve more precision
+        borrowPart * _totalBorrow.amount * _exchangeRate / _totalBorrow.share;
     }
 
     /// @dev Checks if the user is solvent in the closed liquidation case at the end of the function body.
@@ -182,7 +179,7 @@ contract Core is BoringOwnable, IMasterContract {
         bool skim
     ) internal {
         if (skim) {
-            require(share <= tokenVault.balanceOf(token, address(this)).sub(total), "Core: Skim too much");
+            require(share <= tokenVault.balanceOf(token, address(this)) - total, "Core: Skim too much");
         } else {
             tokenVault.transfer(token, msg.sender, address(this), share);
         }
@@ -198,17 +195,17 @@ contract Core is BoringOwnable, IMasterContract {
         bool skim,
         uint256 share
     ) public {
-        userCollateralShare[to] = userCollateralShare[to].add(share);
+        userCollateralShare[to] += share;
         uint256 oldTotalCollateralShare = totalCollateralShare;
-        totalCollateralShare = oldTotalCollateralShare.add(share);
+        totalCollateralShare = oldTotalCollateralShare + share;
         _addTokens(collateral, share, oldTotalCollateralShare, skim);
         emit LogAddCollateral(skim ? address(tokenVault) : msg.sender, to, share);
     }
 
     /// @dev Concrete implementation of `removeCollateral`.
     function _removeCollateral(address to, uint256 share) internal {
-        userCollateralShare[msg.sender] = userCollateralShare[msg.sender].sub(share);
-        totalCollateralShare = totalCollateralShare.sub(share);
+        userCollateralShare[msg.sender] = userCollateralShare[msg.sender] - share;
+        totalCollateralShare = totalCollateralShare - share;
         emit LogRemoveCollateral(msg.sender, to, share);
         tokenVault.transfer(collateral, address(this), to, share);
     }
@@ -224,16 +221,17 @@ contract Core is BoringOwnable, IMasterContract {
 
     /// @dev Concrete implementation of `borrow`.
     function _borrow(address to, uint256 amount) internal returns (uint256 part, uint256 share) {
-        uint256 feeAmount = amount.mul(BORROW_OPENING_FEE) / BORROW_OPENING_FEE_PRECISION; // A flat % fee is charged for any borrow
-        (totalBorrow, part) = totalBorrow.add(amount.add(feeAmount), true);
-        accrueInfo.feesEarned = accrueInfo.feesEarned.add(uint128(feeAmount));
-        userBorrowPart[msg.sender] = userBorrowPart[msg.sender].add(part);
+        uint256 feeAmount = amount*BORROW_OPENING_FEE / BORROW_OPENING_FEE_PRECISION;
+        // A flat % fee is charged for any borrow
+        (totalBorrow, part) = totalBorrow.add(amount + feeAmount, true);
+        accrueInfo.feesEarned += uint128(feeAmount);
+        userBorrowPart[msg.sender] += part;
 
         // As long as there are tokens on this contract you can 'mint'... this enables limiting borrows
         share = tokenVault.toShare(clink, amount, false);
         tokenVault.transfer(clink, address(this), to, share);
 
-        emit LogBorrow(msg.sender, to, amount.add(feeAmount), part);
+        emit LogBorrow(msg.sender, to, amount + feeAmount, part);
     }
 
     /// @notice Sender borrows `amount` and transfers it to `to`.
@@ -251,7 +249,7 @@ contract Core is BoringOwnable, IMasterContract {
         uint256 part
     ) internal returns (uint256 amount) {
         (totalBorrow, amount) = totalBorrow.sub(part, true);
-        userBorrowPart[to] = userBorrowPart[to].sub(part);
+        userBorrowPart[to] = userBorrowPart[to] - part;
 
         uint256 share = tokenVault.toShare(clink, amount, true);
         tokenVault.transfer(clink, skim ? address(tokenVault) : msg.sender, address(this), share);
@@ -295,8 +293,8 @@ contract Core is BoringOwnable, IMasterContract {
     // Any external call (except to TokenVault)
     uint8 internal constant ACTION_CALL = 30;
 
-    int256 internal constant USE_VALUE1 = -1;
-    int256 internal constant USE_VALUE2 = -2;
+    int256 internal constant USE_VALUE1 = - 1;
+    int256 internal constant USE_VALUE2 = - 2;
 
     /// @dev Helper function for choosing the correct value (`value1` or `value2`) depending on `inNum`.
     function _num(
@@ -315,9 +313,10 @@ contract Core is BoringOwnable, IMasterContract {
         uint256 value2
     ) internal returns (uint256, uint256) {
         (IERC20 token, address to, int256 amount, int256 share) = abi.decode(data, (IERC20, address, int256, int256));
-        amount = int256(_num(amount, value1, value2)); // Done this way to avoid stack too deep errors
+        amount = int256(_num(amount, value1, value2));
+        // Done this way to avoid stack too deep errors
         share = int256(_num(share, value1, value2));
-        return tokenVault.deposit{value: value}(token, msg.sender, to, uint256(amount), uint256(share));
+        return tokenVault.deposit{value : value}(token, msg.sender, to, uint256(amount), uint256(share));
     }
 
     /// @dev Helper function to withdraw from the `tokenVault`.
@@ -340,7 +339,7 @@ contract Core is BoringOwnable, IMasterContract {
         uint256 value2
     ) internal returns (bytes memory, uint8) {
         (address callee, bytes memory callData, bool useValue1, bool useValue2, uint8 returnValues) =
-            abi.decode(data, (address, bytes, bool, bool, uint8));
+        abi.decode(data, (address, bytes, bool, bool, uint8));
 
         if (useValue1 && !useValue2) {
             callData = abi.encodePacked(callData, value1);
@@ -352,7 +351,7 @@ contract Core is BoringOwnable, IMasterContract {
 
         require(callee != address(tokenVault) && callee != address(this), "Core: can't call");
 
-        (bool success, bytes memory returnData) = callee.call{value: value}(callData);
+        (bool success, bytes memory returnData) = callee.call{value : value}(callData);
         require(success, "Core: call failed");
         return (returnData, returnValues);
     }
@@ -401,7 +400,7 @@ contract Core is BoringOwnable, IMasterContract {
                 require((!must_update || updated) && rate > minRate && (maxRate == 0 || rate > maxRate), "Core: rate not ok");
             } else if (action == ACTION_TOKEN_VAULT_SETAPPROVAL) {
                 (address user, address _masterContract, bool approved, uint8 v, bytes32 r, bytes32 s) =
-                    abi.decode(datas[i], (address, address, bool, uint8, bytes32, bytes32));
+                abi.decode(datas[i], (address, address, bool, uint8, bytes32, bytes32));
                 tokenVault.setMasterContractApproval(user, _masterContract, approved, v, r, s);
             } else if (action == ACTION_TOKEN_VAULT_DEPOSIT) {
                 (value1, value2) = _tokenVaultDeposit(datas[i], values[i], value1, value2);
@@ -423,10 +422,10 @@ contract Core is BoringOwnable, IMasterContract {
                 }
             } else if (action == ACTION_GET_REPAY_SHARE) {
                 int256 part = abi.decode(datas[i], (int256));
-                value1 = tokenVault.toShare(clink, totalBorrow.toElastic(_num(part, value1, value2), true), true);
+                value1 = tokenVault.toShare(clink, totalBorrow.toAmount(_num(part, value1, value2), true), true);
             } else if (action == ACTION_GET_REPAY_PART) {
                 int256 amount = abi.decode(datas[i], (int256));
-                value1 = totalBorrow.toBase(_num(amount, value1, value2), false);
+                value1 = totalBorrow.toShare(_num(amount, value1, value2), false);
             }
         }
 
@@ -452,8 +451,8 @@ contract Core is BoringOwnable, IMasterContract {
         uint256 allCollateralShare;
         uint256 allBorrowAmount;
         uint256 allBorrowPart;
-        Rebase memory _totalBorrow = totalBorrow;
-        Rebase memory tokenVaultTotals = tokenVault.totals(collateral);
+        AssetInfo memory _totalBorrow = totalBorrow;
+        AssetInfo memory tokenVaultTotals = tokenVault.totals(collateral);
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
             if (!_isSolvent(user, _exchangeRate)) {
@@ -461,38 +460,39 @@ contract Core is BoringOwnable, IMasterContract {
                 {
                     uint256 availableBorrowPart = userBorrowPart[user];
                     borrowPart = maxBorrowParts[i] > availableBorrowPart ? availableBorrowPart : maxBorrowParts[i];
-                    userBorrowPart[user] = availableBorrowPart.sub(borrowPart);
+                    userBorrowPart[user] = availableBorrowPart - borrowPart;
                 }
-                uint256 borrowAmount = _totalBorrow.toElastic(borrowPart, false);
+                uint256 borrowAmount = _totalBorrow.toAmount(borrowPart, false);
                 uint256 collateralShare =
-                    tokenVaultTotals.toBase(
-                        borrowAmount.mul(LIQUIDATION_MULTIPLIER).mul(_exchangeRate) /
-                            (LIQUIDATION_MULTIPLIER_PRECISION * EXCHANGE_RATE_PRECISION),
-                        false
-                    );
+                tokenVaultTotals.toShare(
+                    borrowAmount*LIQUIDATION_MULTIPLIER * _exchangeRate /
+                    (LIQUIDATION_MULTIPLIER_PRECISION * EXCHANGE_RATE_PRECISION),
+                    false
+                );
 
-                userCollateralShare[user] = userCollateralShare[user].sub(collateralShare);
+                userCollateralShare[user] -= collateralShare;
                 emit LogRemoveCollateral(user, to, collateralShare);
                 emit LogRepay(msg.sender, user, borrowAmount, borrowPart);
 
                 // Keep totals
-                allCollateralShare = allCollateralShare.add(collateralShare);
-                allBorrowAmount = allBorrowAmount.add(borrowAmount);
-                allBorrowPart = allBorrowPart.add(borrowPart);
+                allCollateralShare += collateralShare;
+                allBorrowAmount += borrowAmount;
+                allBorrowPart += borrowPart;
             }
         }
         require(allBorrowAmount != 0, "Core: all are solvent");
-        _totalBorrow.elastic = _totalBorrow.elastic.sub(allBorrowAmount.to128());
-        _totalBorrow.base = _totalBorrow.base.sub(allBorrowPart.to128());
+        _totalBorrow.amount = _totalBorrow.amount - allBorrowAmount.toUint128();
+        _totalBorrow.share = _totalBorrow.share - allBorrowPart.toUint128();
         totalBorrow = _totalBorrow;
-        totalCollateralShare = totalCollateralShare.sub(allCollateralShare);
+        totalCollateralShare = totalCollateralShare - allCollateralShare;
 
         // Apply a percentual fee share to sSpell holders
-        
+
         {
-            uint256 distributionAmount = (allBorrowAmount.mul(LIQUIDATION_MULTIPLIER) / LIQUIDATION_MULTIPLIER_PRECISION).sub(allBorrowAmount).mul(DISTRIBUTION_PART) / DISTRIBUTION_PRECISION; // Distribution Amount
-            allBorrowAmount = allBorrowAmount.add(distributionAmount);
-            accrueInfo.feesEarned = accrueInfo.feesEarned.add(distributionAmount.to128());
+            uint256 distributionAmount = (allBorrowAmount * LIQUIDATION_MULTIPLIER / ((LIQUIDATION_MULTIPLIER_PRECISION - allBorrowAmount) * DISTRIBUTION_PART)) / DISTRIBUTION_PRECISION;
+            // Distribution Amount
+            allBorrowAmount = allBorrowAmount + distributionAmount;
+            accrueInfo.feesEarned += distributionAmount.toUint128();
         }
 
         uint256 allBorrowShare = tokenVault.toShare(clink, allBorrowAmount, true);
@@ -500,7 +500,7 @@ contract Core is BoringOwnable, IMasterContract {
         // Swap using a swapper freely chosen by the caller
         // Open (flash) liquidation: get proceeds first and provide the borrow after
         tokenVault.transfer(collateral, address(this), to, allCollateralShare);
-        if (swapper != ISwapper(0)) {
+        if (swapper != ISwapper(address(0))) {
             swapper.swap(collateral, clink, msg.sender, allBorrowShare, allCollateralShare);
         }
 

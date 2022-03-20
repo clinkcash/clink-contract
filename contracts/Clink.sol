@@ -1,30 +1,25 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.12;
+pragma solidity ^0.8.0;
 
-import "@boringcrypto/boring-solidity/contracts/libraries/BoringMath.sol";
-import "@boringcrypto/boring-solidity/contracts/ERC20.sol";
-import "@boringcrypto/boring-solidity/contracts/BoringOwnable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 // @title Clink
-contract Clink is ERC20, BoringOwnable {
-    using BoringMath for uint256;
-    string public constant symbol = "CLK";
-    string public constant name = "Clink stable coin";
-    uint8 public constant decimals = 18;
-    uint256 public override totalSupply;
+contract Clink is ERC20Permit, Ownable {
+
+    constructor() payable ERC20("Clink stable coin", "CLK") ERC20Permit("Clink stable coin") {
+    }
+
+    function getChainId() external view returns (uint256) {
+        return block.chainid;
+    }
 
     function mint(address to, uint256 amount) public onlyOwner {
-        require(to != address(0), "CLK: no mint to zero address");
-        totalSupply = totalSupply + amount;
-        balanceOf[to] += amount;
-        emit Transfer(address(0), to, amount);
+        _mint(to, amount);
     }
 
     function burn(uint256 amount) public {
-        require(amount <= balanceOf[msg.sender], "CLK: not enough");
-        balanceOf[msg.sender] -= amount;
-        totalSupply -= amount;
-        emit Transfer(msg.sender, address(0), amount);
+        _burn(msg.sender, amount);
     }
 }

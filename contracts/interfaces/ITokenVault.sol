@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
-pragma experimental ABIEncoderV2;
+// The token vault
+pragma solidity ^0.8.0;
 
-import '@boringcrypto/boring-solidity/contracts/interfaces/IERC20.sol';
-import '@boringcrypto/boring-solidity/contracts/libraries/BoringRebase.sol';
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import './IBatchFlashBorrower.sol';
 import './IFlashBorrower.sol';
 import './IStrategy.sol';
+import '../libraries/AssetInfoLibrary.sol';
 
 interface ITokenVault {
     event LogDeploy(address indexed masterContract, bytes data, address indexed cloneAddress);
@@ -48,7 +48,7 @@ interface ITokenVault {
     function strategyData(IERC20) external view returns (uint64 strategyStartDate, uint64 targetPercentage, uint128 balance);
     function toAmount(IERC20 token, uint256 share, bool roundUp) external view returns (uint256 amount);
     function toShare(IERC20 token, uint256 amount, bool roundUp) external view returns (uint256 share);
-    function totals(IERC20) external view returns (Rebase memory totals_);
+    function totals(IERC20) external view returns (AssetInfo memory totals_);
     function transfer(IERC20 token, address from, address to, uint256 share) external;
     function transferMultiple(IERC20 token, address from, address[] calldata tos, uint256[] calldata shares) external;
     function transferOwnership(address newOwner, bool direct, bool renounce) external;
