@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 require("@nomiclabs/hardhat-waffle");
+require('hardhat-contract-sizer');
 
 const accounts = {
     mnemonic: "test test test test test test test test test test test junk",
@@ -27,6 +28,9 @@ module.exports = {
         },
     },
     networks: {
+        hardhat:{
+            // allowUnlimitedContractSize:true,
+        },
         localhost: {
             live: false,
             saveDeployments: true,
@@ -49,23 +53,30 @@ module.exports = {
         compilers: [
             {
                 version: "0.8.0",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
             },
             {
-                version: "0.8.6",
-            },
-            {
-                version: "0.8.7",
-            },
-            {
-                version: "0.8.9",
-            },
-            {
-                version: "0.8.10",
-            },
-            {
-                version: "0.7.6",
-            },
+                version: "0.8.4",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
+            }
         ]
-    }
+    },
+    contractSizer: {
+        alphaSort: false,
+        disambiguatePaths: false,
+        runOnCompile: true,
+        strict: true
+    },
+
 };
 

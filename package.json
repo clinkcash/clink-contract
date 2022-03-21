@@ -17,15 +17,16 @@
   },
   "homepage": "https://github.com/clinkfi/clink-contract#readme",
   "devDependencies": {
-    "@boringcrypto/boring-solidity": "boringcrypto/BoringSolidity#51616f5bbab53adaf6379428de08c9d8093c63f5",
     "@nomiclabs/hardhat-ethers": "^2.0.5",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "chai": "^4.3.6",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.6.0",
-    "hardhat": "^2.9.1"
+    "hardhat": "^2.9.1",
+    "@openzeppelin/contracts": "^4.5.0",
+    "hardhat-contract-sizer": "^2.5.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.5.0"
+
   }
 }

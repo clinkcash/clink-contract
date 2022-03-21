@@ -5,8 +5,8 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./Clink.sol";
 import "./interfaces/ITokenVault.sol";
+import "./interfaces/IERC20Burnable.sol";
 import "./interfaces/IOracle.sol";
 import "./interfaces/ISwapper.sol";
 import "./interfaces/IInitialization.sol";
@@ -527,11 +527,11 @@ contract Core is Ownable, IInitialization {
         emit LogFeeTo(newFeeTo);
     }
 
-    /// @notice reduces the supply of MIM
+    /// @notice reduces the supply of CLINK
     /// @param amount amount to reduce supply by
     function reduceSupply(uint256 amount) public {
         require(msg.sender == masterContract.owner(), "Caller is not the owner");
         tokenVault.withdraw(clink, address(this), address(this), amount, 0);
-        Clink(address(clink)).burn(amount);
+        IERC20Burnable(address(clink)).burn(amount);
     }
 }
