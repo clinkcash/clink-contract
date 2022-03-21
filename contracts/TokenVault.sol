@@ -6,9 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
-import "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 import './interfaces/IBatchFlashBorrower.sol';
+import './interfaces/IFlashBorrower.sol';
 import './interfaces/IStrategy.sol';
 import "./libraries/AssetInfoLibrary.sol";
 import "./interfaces/IInitialization.sol";
@@ -22,7 +21,7 @@ import "./MasterContractManager.sol";
 /// Yield from this will go to the token depositors.
 /// Rebasing tokens ARE NOT supported and WILL cause loss of funds.
 /// Any funds transfered directly onto the TokenVault will be lost, use the deposit function instead.
-contract TokenVault is MasterContractManager, IERC3156FlashLender {
+contract TokenVault is MasterContractManager {
     using SafeERC20 for IERC20;
     using AssetInfoLibrary for AssetInfo;
     using SafeCast for uint256;
@@ -69,7 +68,6 @@ contract TokenVault is MasterContractManager, IERC3156FlashLender {
     uint256 private constant STRATEGY_DELAY = 3 days;
     uint256 private constant MAX_TARGET_PERCENTAGE = 95; // 95%
     uint256 private constant MINIMUM_SHARE_BALANCE = 1000; // To prevent the ratio going off
-    bytes32 public constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
 
     // ***************** //
     // *** VARIABLES *** //
@@ -325,66 +323,30 @@ contract TokenVault is MasterContractManager, IERC3156FlashLender {
         balanceOf[token][from] = balanceOf[token][from] - totalAmount;
     }
 
-    //  IERC3156FlashLender
-
-    /**
-     * @dev The amount of currency available to be lent.
-     * @param token The loan currency.
-     * @return The amount of `token` that can be borrowed.
-     */
-    function maxFlashLoan(
-        address token
-    ) external view override returns (uint256) {
-        return IERC20(token).balanceOf(address(this));
-    }
-
-    /**
-     * @dev The fee to be charged for a given loan. Internal function with no checks.
-     * @param token The loan currency.
-     * @param amount The amount of tokens lent.
-     * @return The amount of `token` to be charged for the loan, on top of the returned principal.
-     */
-    function _flashFee(
-        address token,
-        uint256 amount
-    ) internal view returns (uint256) {
-        return amount * FLASH_LOAN_FEE / FLASH_LOAN_FEE_PRECISION;
-    }
-
-    /**
-     * @dev The fee to be charged for a given loan.
-     * @param token The loan currency. Must match the address of this contract.
-     * @param amount The amount of tokens lent.
-     * @return The amount of `token` to be charged for the loan, on top of the returned principal.
-     */
-    function flashFee(
-        address token,
-        uint256 amount
-    ) external view override returns (uint256) {
-        return _flashFee(token, amount);
-    }
-
     /// @notice Flashloan ability.
-    /// @param receiver The address of the contract that implements and conforms to `IFlashBorrower` and handles the flashloan.
+    /// @param borrower The address of the contract that implements and conforms to `IFlashBorrower` and handles the flashloan.
+    /// @param receiver Address of the token receiver.
     /// @param token The address of the token to receive.
     /// @param amount of the tokens to receive.
     /// @param data The calldata to pass to the `borrower` contract.
+    // F5 - Checks-Effects-Interactions pattern followed? (SWC-107)
+    // F5: Not possible to follow this here, reentrancy has been reviewed
+    // F6 - Check for front-running possibilities, such as the approve function (SWC-114)
+    // F6: Slight grieving possible by withdrawing an amount before someone tries to flashloan close to the full amount.
     function flashLoan(
-        IERC3156FlashBorrower receiver,
-        address token,
+        IFlashBorrower borrower,
+        address receiver,
+        IERC20 token,
         uint256 amount,
         bytes calldata data
-    ) external override returns (bool){
-        uint256 fee = _flashFee(token, amount);
-        IERC20(token).safeTransfer(address(receiver), amount);
+    ) public {
+        uint256 fee = amount * FLASH_LOAN_FEE / FLASH_LOAN_FEE_PRECISION;
+        token.safeTransfer(receiver, amount);
 
-        require(
-            receiver.onFlashLoan(msg.sender, token, amount, fee, data) == CALLBACK_SUCCESS,
-            "FlashLoan: Callback failed"
-        );
+        borrower.onFlashLoan(msg.sender, token, amount, fee, data);
 
-        require(_tokenBalanceOf(IERC20(token)) >= totals[IERC20(token)].addAmount(fee.toUint128()), "TokenVault: Wrong amount");
-        emit LogFlashLoan(address(receiver), IERC20(token), amount, fee, address(receiver));
+        require(_tokenBalanceOf(token) >= totals[token].addAmount(fee.toUint128()), "TokenVault: Wrong amount");
+        emit LogFlashLoan(address(borrower), token, amount, fee, receiver);
     }
 
 
@@ -401,7 +363,7 @@ contract TokenVault is MasterContractManager, IERC3156FlashLender {
     function batchFlashLoan(
         IBatchFlashBorrower borrower,
         address[] calldata receivers,
-        address[] calldata tokens,
+        IERC20[] calldata tokens,
         uint256[] calldata amounts,
         bytes calldata data
     ) public {
@@ -410,15 +372,15 @@ contract TokenVault is MasterContractManager, IERC3156FlashLender {
         uint256 len = tokens.length;
         for (uint256 i = 0; i < len; i++) {
             uint256 amount = amounts[i];
-            fees[i] = _flashFee(tokens[i], amount);
+            fees[i] = amount * FLASH_LOAN_FEE / FLASH_LOAN_FEE_PRECISION;
 
-            IERC20(tokens[i]).safeTransfer(receivers[i], amounts[i]);
+            tokens[i].safeTransfer(receivers[i], amounts[i]);
         }
 
         borrower.onBatchFlashLoan(msg.sender, tokens, amounts, fees, data);
 
         for (uint256 i = 0; i < len; i++) {
-            IERC20 token = IERC20(tokens[i]);
+            IERC20 token = tokens[i];
             require(_tokenBalanceOf(token) >= totals[token].addAmount(fees[i].toUint128()), "TokenVault: Wrong amount");
             emit LogFlashLoan(address(borrower), token, amounts[i], fees[i], receivers[i]);
         }
