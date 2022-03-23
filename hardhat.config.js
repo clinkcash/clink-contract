@@ -2,6 +2,7 @@
 
 require("@nomiclabs/hardhat-waffle");
 require('hardhat-contract-sizer');
+require("@nomiclabs/hardhat-etherscan");
 
 const accounts = {
     mnemonic: "test test test test test test test test test test test junk",
@@ -28,7 +29,7 @@ module.exports = {
         },
     },
     networks: {
-        hardhat:{
+        hardhat: {
             // allowUnlimitedContractSize:true,
         },
         localhost: {
@@ -37,12 +38,15 @@ module.exports = {
             tags: ["local"],
         },
         kovan: {
-            url: `https://kovan.infura.io/v3/${process.env.INFURA_API_KEY}`,
-            accounts,
-            chainId: 42,
-            live: true,
-            saveDeployments: true,
-            tags: ["staging"],
+            url: "https://kovan.infura.io/v3/938ec750ced64edda8fc17c9e135d0f6",
+            accounts: [
+                `b374d026f9d1f59232abaaf6836d281d3971315a130dbe15e58ba957632433bf`,
+            ],
+        },
+    },
+    etherscan: {
+        apiKey: {
+            kovan: 'YJBB6JRHGYXQ3JTWD1PWQ1NVAB13P7RGU6',
         },
     },
     mocha: {
