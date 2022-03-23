@@ -3,6 +3,7 @@
 require("@nomiclabs/hardhat-waffle");
 require('hardhat-contract-sizer');
 require("@nomiclabs/hardhat-etherscan");
+require('solidity-coverage')
 
 const accounts = {
     mnemonic: "test test test test test test test test test test test junk",
@@ -46,7 +47,7 @@ module.exports = {
     },
     etherscan: {
         apiKey: {
-            kovan: 'YJBB6JRHGYXQ3JTWD1PWQ1NVAB13P7RGU6',
+            kovan: 'I6A3KDZGT3HI64W9RMRE2V12QP3U8EA74Z',
         },
     },
     mocha: {
