@@ -221,7 +221,7 @@ contract Core is Ownable, IInitialization {
 
     /// @dev Concrete implementation of `borrow`.
     function _borrow(address to, uint256 amount) internal returns (uint256 part, uint256 share) {
-        uint256 feeAmount = amount*BORROW_OPENING_FEE / BORROW_OPENING_FEE_PRECISION;
+        uint256 feeAmount = amount * BORROW_OPENING_FEE / BORROW_OPENING_FEE_PRECISION;
         // A flat % fee is charged for any borrow
         (totalBorrow, part) = totalBorrow.add(amount + feeAmount, true);
         accrueInfo.feesEarned += uint128(feeAmount);
@@ -465,7 +465,7 @@ contract Core is Ownable, IInitialization {
                 uint256 borrowAmount = _totalBorrow.toAmount(borrowPart, false);
                 uint256 collateralShare =
                 tokenVaultTotals.toShare(
-                    borrowAmount*LIQUIDATION_MULTIPLIER * _exchangeRate /
+                    borrowAmount * LIQUIDATION_MULTIPLIER * _exchangeRate /
                     (LIQUIDATION_MULTIPLIER_PRECISION * EXCHANGE_RATE_PRECISION),
                     false
                 );
@@ -481,17 +481,16 @@ contract Core is Ownable, IInitialization {
             }
         }
         require(allBorrowAmount != 0, "Core: all are solvent");
-        _totalBorrow.amount = _totalBorrow.amount - allBorrowAmount.toUint128();
-        _totalBorrow.share = _totalBorrow.share - allBorrowPart.toUint128();
+        _totalBorrow.amount -= allBorrowAmount.toUint128();
+        _totalBorrow.share -= allBorrowPart.toUint128();
         totalBorrow = _totalBorrow;
-        totalCollateralShare = totalCollateralShare - allCollateralShare;
+        totalCollateralShare -= allCollateralShare;
 
         // Apply a percentual fee share to sSpell holders
-
         {
-            uint256 distributionAmount = (allBorrowAmount * LIQUIDATION_MULTIPLIER / ((LIQUIDATION_MULTIPLIER_PRECISION - allBorrowAmount) * DISTRIBUTION_PART)) / DISTRIBUTION_PRECISION;
+            uint256 distributionAmount = ((allBorrowAmount * LIQUIDATION_MULTIPLIER / LIQUIDATION_MULTIPLIER_PRECISION) - allBorrowAmount) * DISTRIBUTION_PART / DISTRIBUTION_PRECISION;
             // Distribution Amount
-            allBorrowAmount = allBorrowAmount + distributionAmount;
+            allBorrowAmount += distributionAmount;
             accrueInfo.feesEarned += distributionAmount.toUint128();
         }
 
@@ -504,6 +503,7 @@ contract Core is Ownable, IInitialization {
             swapper.swap(collateral, clink, msg.sender, allBorrowShare, allCollateralShare);
         }
 
+        // msg.sender will be rewarded the stable coin for the extra collateral share(allCollateralShare).
         tokenVault.transfer(clink, msg.sender, address(this), allBorrowShare);
     }
 
