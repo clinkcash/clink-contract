@@ -19,34 +19,28 @@ describe("demo", function () {
         // await hre.run('compile');
 
         this.WETH9Mock = await ethers.getContractFactory("WETH9Mock");
-        // 部署初始金额全部mint给msg.sender
+        // deploy weth
         this.weth = await this.WETH9Mock.deploy();
         await this.weth.deployed();
 
-        // 部署命令 npx hardhat run ./scripts/deploy.js --network kovan
-        // 1.获取ERC20Mock
         this.ERC20Mock = await ethers.getContractFactory("ERC20Mock");
 
-        // 部署初始金额全部mint给msg.sender
         this.collateral = await this.ERC20Mock.deploy(
             "TEST-TOKEN", "WBTC",
         );
         await this.collateral.deployed();
         this.collateral.mint(this.alice.address, '1000000000000000000000000000000000')
 
-        // 2. 部署MIM
         this.Clink = await ethers.getContractFactory(
             "Clink"
         );
         this.clink = await this.Clink.deploy();
         await this.clink.deployed();
 
-        // 3. 部署tokenVault
         this.TokenVault = await ethers.getContractFactory("TokenVault");
         this.tokenVault = await this.TokenVault.deploy(this.weth.address);
         await this.tokenVault.deployed();
 
-        // 4.部署master core
         this.Core = await ethers.getContractFactory("Core");
         this.masterContract = await this.Core.deploy(
             this.tokenVault.address,
@@ -54,16 +48,12 @@ describe("demo", function () {
         );
         await this.masterContract.deployed();
 
-        // 5.部署oracle
         this.OracleMock = await ethers.getContractFactory("OracleMock");
         this.oracle = await this.OracleMock.deploy();
         await this.oracle.deployed();
 
-        // *6.设置oracle的初始 价格
         await this.oracle.set("1000000000000000000");
 
-        // 7.deploy具体的 weth-clink core
-        // 下面开始构 具体的weth-clink core 相关参数
         const INTEREST_CONVERSION = 1e18 / (365.25 * 3600 * 24) / 100;
         const interest = parseInt(String(2 * INTEREST_CONVERSION));
         const OPENING_CONVERSION = 1e5 / 100;
@@ -71,7 +61,6 @@ describe("demo", function () {
         const liquidation = 10 * 1e3 + 1e5;
         const collateralization = 85 * 1e3;
 
-        // 编码
         const initData = ethers.utils.defaultAbiCoder.encode(
             [
                 "address",
@@ -93,17 +82,14 @@ describe("demo", function () {
             ]
         );
 
-        // 发送交易 deploy
         const tx = await (
             await this.tokenVault.deploy(this.masterContract.address, initData, true)
         ).wait();
 
-        // 从交易事件中获取具体的cauldron address
         const deployEvent = tx?.events?.[0];
         const coreAddress = deployEvent?.args?.cloneAddress;
         this.core = this.Core.attach(coreAddress);
 
-        // 8. 部署具体的swapper，里面逻辑简单写了一下，
         this.SimpleSwapperMock = await ethers.getContractFactory(
             "SimpleSwapperMock"
         );
@@ -116,12 +102,10 @@ describe("demo", function () {
         );
         await this.swapper.deployed();
 
-        // 9.设置core的初始资金
         await this.clink.mint(this.alice.address, "100000000000000000000000");
         await this.clink.approve(this.tokenVault.address, "0xffffffffffffffffffffffffffffffffffffffffff");
         await this.tokenVault.deposit(this.clink.address, this.alice.address, this.core.address, "100000000000000000000000", "0");
 
-        // 10. 下面是给swapper 转一些mim weth进去，免得调用swapper 换币的时候，报错
         await this.clink.mint(this.swapper.address, "100000000000000000000000");
 
         await this.collateral.transfer(
@@ -324,7 +308,6 @@ describe("demo", function () {
         await this.erc20.deployed();
         this.erc20.mint(this.alice.address, '1000000000000000000000000000000000')
 
-        // 下面开始构 具体的weth-clink core 相关参数
         const INTEREST_CONVERSION = 1e18 / (365.25 * 3600 * 24) / 100;
         const interest = parseInt(String(2 * INTEREST_CONVERSION));
         const OPENING_CONVERSION = 1e5 / 100;
@@ -332,7 +315,6 @@ describe("demo", function () {
         const liquidation = 10 * 1e3 + 1e5;
         const collateralization = 85 * 1e3;
 
-        // 编码
         const initData = ethers.utils.defaultAbiCoder.encode(
             [
                 "address",
@@ -354,12 +336,10 @@ describe("demo", function () {
             ]
         );
 
-        // 发送交易 deploy
         const tx = await (
             await this.tokenVault.deploy(this.masterContract.address, initData, true)
         ).wait();
 
-        // 从交易事件中获取具体的cauldron address
         const deployEvent = tx?.events?.[0];
         const coreAddress = deployEvent?.args?.cloneAddress;
         this.core1 = this.Core.attach(deployEvent?.args?.cloneAddress);
