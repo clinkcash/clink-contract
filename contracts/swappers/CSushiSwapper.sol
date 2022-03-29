@@ -75,7 +75,7 @@ interface IUniswapV2Pair {
     function initialize(address, address) external;
 }
 
-interface TokenVault {
+interface ITokenVault {
     function withdraw(
         IERC20 token,
         address from,
@@ -94,7 +94,7 @@ interface TokenVault {
 }
 
 contract CSushiSwapper is ISwapperGeneric {
-    TokenVault public constant TOKENVAULT = TokenVault(0x1fC83f75499b7620d53757f0b01E2ae626aAE530);
+    ITokenVault public constant TOKENVAULT = ITokenVault(0x1fC83f75499b7620d53757f0b01E2ae626aAE530);
     IUniswapV2Pair public constant pair = IUniswapV2Pair(0x781655d802670bbA3c89aeBaaEa59D3182fD755D);
     address public constant Clink = 0x130966628846BFd36ff31a822705796e8cb8C18D;
     address public constant CSushi = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;

@@ -460,7 +460,7 @@ describe("demo", function () {
             "clink",
             (await this.clink.balanceOf(this.alice.address)).toString()
         );
-        await this.core.cook(
+        const tx = await this.core.cook(
             [11, 24, 20, 10, 5, 21],
             [0, 0, 0, 0, 0, 0],
             [
@@ -472,6 +472,9 @@ describe("demo", function () {
                 withdrawData,
             ]
         );
+
+        const receipt = await tx.wait()
+
 
         console.info(
             "clink",
