@@ -7,9 +7,10 @@ tokenvault :0xcb6e3bb46db170f8b9b3d026b19b4ff638577639
 
 tokens:
 cSushi:0x3666360b44bd9b30de72fde64dcd5950297eb22e
-weth : 0xEd71B3FFe0BCe56046be1CC43baF585D2244F346
-wbtc : 0xA783432Cb869AF5979357209f9e49a17e395cDcc
+weth  : 0xEd71B3FFe0BCe56046be1CC43baF585D2244F346
+wbtc  : 0xA783432Cb869AF5979357209f9e49a17e395cDcc
 clink : 0xCb8A8F4721b9b8e4487d88a838BcD31b08E466c0
+ftn   : 0x5a06e2Ab09A40B5D31f2AB7818652c1d1b50F0D0
 
 masterContract:
 masterContract : 0x6BB4929267f2030632C64D4701E0F6805aD100B4
@@ -28,6 +29,10 @@ csushi-oracle:0x398cb309980F6a24F1499c53e2D721eF7d6FB046
 
 exchange url:
 csushi <-> clk : https://app.uniswap.org/#/swap?chain=kovan
+
+lp pool reward:
+sorbettiere: 0x5de53aC41c4e81498abD55F09A9E78676DA7f39B
+
 
 how to get wbtc?
 can mint wbtc on the opensource mock contract in kovan scan
