@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build-contracts": "sol-merger \"./contracts/Ftn.sol\" ./build/"
   },
   "repository": {
     "type": "git",
@@ -26,6 +27,7 @@
     "ethers": "^5.6.0",
     "hardhat": "^2.9.1",
     "hardhat-contract-sizer": "^2.5.0",
+    "sol-merger": "^4.1.1",
     "solidity-coverage": "^0.7.20"
   }
 }

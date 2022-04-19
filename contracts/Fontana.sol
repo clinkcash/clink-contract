@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 // @title Ftn
-contract Ftn is ERC20Permit, Ownable {
+contract Fontana is ERC20Permit, Ownable {
 
     uint256 public constant MAX_SUPPLY = 10 * 1e27;
 
