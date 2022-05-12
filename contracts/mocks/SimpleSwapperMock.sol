@@ -19,8 +19,8 @@ contract SimpleSwapperMock is ISwapperGeneric {
     ITokenVault public TOKENVAULT;
     ICore public core;
 
-    constructor(IERC20 _mim, IERC20 _collateral, IOracle _oracle, ITokenVault _tokenVault, ICore _core) {
-        clink = _mim;
+    constructor(IERC20 _clink, IERC20 _collateral, IOracle _oracle, ITokenVault _tokenVault, ICore _core) {
+        clink = _clink;
         collateral = _collateral;
         oracle = _oracle;
         core = _core;
