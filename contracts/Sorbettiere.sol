@@ -440,6 +440,8 @@ contract Sorbettiere is Ownable {
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event OnePoolUpdate(uint256 indexed pid);
+    event PoolsInfoUpdate(uint256 icePerSecond, uint256 totalAllocPoint, uint32 startTime, uint32 endTime);
 
     constructor(
         IERC20 _ice,
@@ -451,10 +453,14 @@ contract Sorbettiere is Ownable {
         icePerSecond = _icePerSecond;
         startTime = _startTime;
         endTime = _startTime + 7 days;
+
+        emit PoolsInfoUpdate(icePerSecond, totalAllocPoint, _startTime, endTime);
     }
     
     function changeEndTime(uint32 addSeconds) external onlyOwner {
         endTime += addSeconds;
+
+        emit PoolsInfoUpdate( icePerSecond, totalAllocPoint, startTime,endTime);
     }
     
     // Changes Ice token reward per second. Use this function to moderate the `lockup amount`. Essentially this function changes the amount of the reward
@@ -465,6 +471,8 @@ contract Sorbettiere is Ownable {
             massUpdatePools();
         }
         icePerSecond= _icePerSecond;
+
+        emit PoolsInfoUpdate( icePerSecond, totalAllocPoint, startTime,endTime);
     }
 // How many pools are in the contract
     function poolLength() external view returns (uint256) {
@@ -495,6 +503,8 @@ contract Sorbettiere is Ownable {
                 accIcePerShare: 0
             })
         );
+
+        emit OnePoolUpdate(poolInfo.length - 1);
     }
 
     // Update the given pool's ICE allocation point. Can only be called by the owner.
@@ -509,6 +519,8 @@ contract Sorbettiere is Ownable {
         }
         totalAllocPoint = totalAllocPoint - poolInfo[_pid].allocPoint + _allocPoint;
         poolInfo[_pid].allocPoint = _allocPoint;
+
+        emit OnePoolUpdate(_pid);
     }
 
     // Return reward multiplier over the given _from to _to time.
