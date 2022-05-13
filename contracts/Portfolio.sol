@@ -458,84 +458,88 @@ contract Portfolio is Ownable, IInitialization {
     /// @param users An array of user addresses.
     /// @param maxBorrowParts A one-to-one mapping to `users`, contains maximum (partial) borrow amounts (to liquidate) of the respective user.
     /// @param to Address of the receiver in open liquidations if `swapper` is zero.
-//    function liquidate(
-//        address[] calldata users,
-//        uint256[][] calldata tokenIndex,
-//        uint256[][] calldata maxBorrowParts,
-//        address to,
-//        ISwapper[] memory swapper
-//    ) public {
-//        // Oracle can fail but we still need to allow liquidations
-//        updateExchangeRateAll();
-//        accrue();
-//
-//        uint256[] memory allCollateralShare = new uint256[](collateral.length);
-//        uint256[] memory allBorrowAmount = new uint256[](collateral.length);
-//        uint256[] memory allBorrowPart = new uint256[](collateral.length);
-//        AssetInfo memory _totalBorrow = totalBorrow;
-//        AssetInfo memory tokenVaultTotals = tokenVault.totals(collateral);
-//        for (uint256 i = 0; i < users.length; i++) {
-//            address user = users[i];
-//            if (!_isSolvent(user)) {
-//                uint256[] memory tokens = tokenIndex[i];
-//                uint256[] memory userMaxBorrowParts = maxBorrowParts[i];
-//                for (uint256 j = 0; j < tokens.length; j++) {
-//                    uint256 index = tokens[j];
-//                    address token = address(collateral[index]);
-//                    require(tokenApprove[token] == true, 'token not supported');
-//                    uint256 borrowPart;
-//                    {
-//                        uint256 availableBorrowPart = userBorrowPart[token][user];
-//                        borrowPart = maxBorrowParts[i] > availableBorrowPart ? availableBorrowPart : maxBorrowParts[i];
-//                        userBorrowPart[token][user] = availableBorrowPart - borrowPart;
-//                    }
-//                    uint256 borrowAmount = _totalBorrow.toAmount(borrowPart, false);
-//                    uint256 collateralShare =
-//                    tokenVaultTotals.toShare(
-//                        borrowAmount * LIQUIDATION_MULTIPLIER * exchangeRate[token] /
-//                        (LIQUIDATION_MULTIPLIER_PRECISION * EXCHANGE_RATE_PRECISION),
-//                        false
-//                    );
-//
-//                    userCollateralShare[token][user] -= collateralShare;
-//                    emit LogRemoveCollateral(user, to, collateralShare);
-//                    emit LogRepay(msg.sender, user, borrowAmount, borrowPart);
-//
-//                    // Keep totals
-//                    allCollateralShare[index] += collateralShare;
-//                    allBorrowAmount += borrowAmount;
-//                    allBorrowPart += borrowPart;
-//                }
-//            }
-//        }
-//        require(allBorrowAmount != 0, "Core: all are solvent");
-//        _totalBorrow.amount -= allBorrowAmount.toUint128();
-//        _totalBorrow.share -= allBorrowPart.toUint128();
-//        totalBorrow = _totalBorrow;
-//
-//
-//        // Apply a percentual fee share to sSpell holders
-//        {
-//            uint256 distributionAmount = ((allBorrowAmount * LIQUIDATION_MULTIPLIER / LIQUIDATION_MULTIPLIER_PRECISION) - allBorrowAmount) * DISTRIBUTION_PART / DISTRIBUTION_PRECISION;
-//            // Distribution Amount
-//            allBorrowAmount += distributionAmount;
-//            accrueInfo.feesEarned += distributionAmount.toUint128();
-//        }
-//
-//
-//        // Swap using a swapper freely chosen by the caller
-//        // Open (flash) liquidation: get proceeds first and provide the borrow after
-//        for (uint i = 0; i < collateral.length; i++) {
-//            totalCollateralShare[address(collateral[i])] -= allCollateralShare[i];
-//            uint256 allBorrowShare = tokenVault.toShare(clink, allBorrowAmount, true);
-//            tokenVault.transfer(collateral[i], address(this), to, allCollateralShare[i]);
-//            if (swapper[i] != ISwapper(address(0))) {
-//                swapper[i].swap(collateral[i], clink, msg.sender, allBorrowShare, allCollateralShare[i]);
-//            }
-//            // msg.sender will be rewarded the stable coin for the extra collateral share(allCollateralShare).
-//            tokenVault.transfer(clink, msg.sender, address(this), allBorrowShare);
-//        }
-//    }
+    function liquidate(
+        address[] calldata users,
+        address to,
+        ISwapper[] memory swapper
+    ) public {
+        // Oracle can fail but we still need to allow liquidations
+        updateExchangeRateAll();
+        accrue();
+
+        uint256[] memory allCollateralShare = new uint256[](collateral.length);
+        uint256 allBorrowAmount;
+        uint256 allBorrowPart;
+        AssetInfo memory _totalBorrow = totalBorrow;
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            uint256 totalPart;
+            if (!_isSolvent(user)) {
+                for (uint256 j = 0; j < collateral.length; j++) {
+                    address token = address(collateral[j]);
+                    uint256 collateralShare = userCollateralShare[token][user];
+                    if (collateralShare == 0) {
+                        continue;
+                    }
+                    uint256 collateralShareAmount = tokenVault.totals(collateral[index]).toAmount(collateralShare, false);
+                    uint256 borrowAmount = collateralShareAmount * LIQUIDATION_MULTIPLIER_PRECISION * EXCHANGE_RATE_PRECISION / (LIQUIDATION_MULTIPLIER * exchangeRate[token]);
+                    uint256 borrowPart = _totalBorrow.toShare(borrowAmount, false);
+                    totalPart += borrowPart;
+                }
+                if (totalPart == 0) {
+                    continue;
+                }
+                uint256 rate = 100;
+                if (totalPart > userBorrowPart[user]) {
+                    rate = userBorrowPart[user] * 100 / totalPart;
+                }
+                uint256 targetPart = totalPart * rate / 100;
+                allBorrowPart += targetPart;
+                allBorrowAmount += _totalBorrow.toAmount(targetPart, false);
+                for (uint256 j = 0; j < collateral.length; j++) {
+                    address token = address(collateral[j]);
+                    uint256 collateralShare = userCollateralShare[token][user];
+                    if (collateralShare == 0) {
+                        continue;
+                    }
+                    if (rate == 100) {
+                        userCollateralShare[token][user] = 0;
+                        allCollateralShare[j] += collateralShare;
+                    } else {
+                        collateralShare = collateralShare * rate / 100;
+                        userCollateralShare[token][user] -= collateralShare;
+                        allCollateralShare[j] += collateralShare;
+                    }
+                }
+            }
+        }
+        require(allBorrowAmount != 0, "Core: all are solvent");
+        _totalBorrow.amount -= allBorrowAmount.toUint128();
+        _totalBorrow.share -= allBorrowPart.toUint128();
+        totalBorrow = _totalBorrow;
+
+
+        // Apply a percentual fee share to sSpell holders
+        {
+            uint256 distributionAmount = ((allBorrowAmount * LIQUIDATION_MULTIPLIER / LIQUIDATION_MULTIPLIER_PRECISION) - allBorrowAmount) * DISTRIBUTION_PART / DISTRIBUTION_PRECISION;
+            // Distribution Amount
+            allBorrowAmount += distributionAmount;
+            accrueInfo.feesEarned += distributionAmount.toUint128();
+        }
+        uint256 allBorrowShare = tokenVault.toShare(clink, allBorrowAmount, true);
+
+        // Swap using a swapper freely chosen by the caller
+        // Open (flash) liquidation: get proceeds first and provide the borrow after
+        for (uint i = 0; i < collateral.length; i++) {
+            totalCollateralShare[address(collateral[i])] -= allCollateralShare[i];
+            tokenVault.transfer(collateral[i], address(this), to, allCollateralShare[i]);
+            if (swapper[i] != ISwapper(address(0))) {
+                swapper[i].swap(collateral[i], clink, msg.sender, 0, allCollateralShare[i]);
+            }
+        }
+        // msg.sender will be rewarded the stable coin for the extra collateral share(allCollateralShare).
+        tokenVault.transfer(clink, msg.sender, address(this), allBorrowShare);
+    }
 
     /// @notice Withdraws the fees accumulated.
     function withdrawFees() public {
