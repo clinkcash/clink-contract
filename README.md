@@ -30,8 +30,14 @@ csushi-oracle:0x398cb309980F6a24F1499c53e2D721eF7d6FB046
 exchange url:
 csushi <-> clk : https://app.uniswap.org/#/swap?chain=kovan
 
-lp pool reward:
-sorbettiere: 0x5de53aC41c4e81498abD55F09A9E78676DA7f39B
+lp pool reward contract:
+sorbettiere: 0xF2E5E434bC203C58BAbBdAf7fE4e499d2aEb8760
+
+uni-v2 lp:
+0x2F84EFc05CAB2653a5f0a261EdeCb0A5133B6031(clink-ftn)
+0xdD612965659fE530869f9E224286D232334b4bd3（clink-usdt)
+0xb40846A9f674a17a7F8e6AA84C8F25a24AeE9D9e(clink-weth)
+0xA2D2541d6EE6aFc2eB2BEE81c01025fecFc029CA（ftn-weth)
 
 
 how to get wbtc?
