@@ -13,7 +13,6 @@ import "./interfaces/IInitialization.sol";
 import "./libraries/AssetInfoLibrary.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-
 /// @title Core
 /// @dev This contract allows contract calls to any contract (except TokenVault)
 /// from arbitrary callers thus, don't trust calls from this contract in any circumstances.
@@ -41,16 +40,16 @@ contract Portfolio is Ownable, IInitialization {
 
     // Per clone variables
     // Clone init settings
-    IERC20[] public collateral;
-    mapping(address => bool) tokenApprove;
-    mapping(address => IOracle)  public oracle;
-    mapping(address => bytes)  public oracleData;
+    IERC20[] public collateral; //collateral list
+    mapping(address => bool) tokenApprove; //check token status
+    mapping(address => IOracle) public oracle;
+    mapping(address => bytes) public oracleData;
 
     // Total amounts
     mapping(address => uint256) public totalCollateralShare; // Total collateral supplied
     AssetInfo public totalBorrow; // amount = Total token amount to be repayed by borrowers, share = Total parts of the debt held by borrowers
 
-    // User balances
+    // User balances token address-> user address
     mapping(address => mapping(address => uint256)) public userCollateralShare;
     mapping(address => uint256) public userBorrowPart;
 
@@ -82,7 +81,7 @@ contract Portfolio is Ownable, IInitialization {
     uint256 private constant DISTRIBUTION_PRECISION = 100;
 
     /// @notice The constructor is only used for the initial master contract. Subsequent clones are initialised via `init`.
-    constructor(ITokenVault tokenVault_, IERC20 clink_) public {
+    constructor(ITokenVault tokenVault_, IERC20 clink_) {
         tokenVault = tokenVault_;
         clink = clink_;
         masterContract = this;
@@ -95,11 +94,9 @@ contract Portfolio is Ownable, IInitialization {
         IERC20 initCollateral;
         IOracle initOracle;
         bytes memory initData;
-        (initCollateral, initOracle, initData, accrueInfo.INTEREST_PER_SECOND, LIQUIDATION_MULTIPLIER, COLLATERIZATION_RATE, BORROW_OPENING_FEE) = abi.decode(data, (IERC20, IOracle, bytes, uint64, uint256, uint256, uint256));
-        collateral.push(initCollateral);
-        oracle[address(initCollateral)] = initOracle;
-        oracleData[address(initCollateral)] = initData;
-        tokenApprove[address(initCollateral)] = true;
+        (initCollateral, initOracle, initData, accrueInfo.INTEREST_PER_SECOND, LIQUIDATION_MULTIPLIER, COLLATERIZATION_RATE, BORROW_OPENING_FEE) = abi
+            .decode(data, (IERC20, IOracle, bytes, uint64, uint256, uint256, uint256));
+        addCollateralToken(initCollateral, initOracle, initData);
         require(collateral.length > 0, "Core: bad pair");
     }
 
@@ -120,7 +117,7 @@ contract Portfolio is Ownable, IInitialization {
         }
 
         // Accrue interest
-        uint128 extraAmount = (uint256(_totalBorrow.amount) * _accrueInfo.INTEREST_PER_SECOND * elapsedTime / 1e18).toUint128();
+        uint128 extraAmount = ((uint256(_totalBorrow.amount) * _accrueInfo.INTEREST_PER_SECOND * elapsedTime) / 1e18).toUint128();
         _totalBorrow.amount += extraAmount;
 
         _accrueInfo.feesEarned += extraAmount;
@@ -139,18 +136,23 @@ contract Portfolio is Ownable, IInitialization {
         for (uint i = 0; i < collateral.length; i++) {
             IERC20 token = collateral[i];
             uint256 collateralShare = userCollateralShare[address(token)][user];
-            if (collateralShare == 0) return false;
+            if (collateralShare == 0) {
+                continue;
+            }
 
-            collateralVal += tokenVault.toAmount(
-                token,
-                collateralShare * (EXCHANGE_RATE_PRECISION / COLLATERIZATION_RATE_PRECISION) * COLLATERIZATION_RATE,
-                false
-            ) * 1e18 / exchangeRate[address(token)];
+            collateralVal +=
+                (tokenVault.toAmount(
+                    token,
+                    collateralShare * (EXCHANGE_RATE_PRECISION / COLLATERIZATION_RATE_PRECISION) * COLLATERIZATION_RATE,
+                    false
+                ) * EXCHANGE_RATE_PRECISION) /
+                exchangeRate[address(token)];
         }
         AssetInfo memory _totalBorrow = totalBorrow;
-        return collateralVal >=
-        // Moved exchangeRate here instead of dividing the other side to preserve more precision
-        borrowPart * _totalBorrow.amount * 1e18 / _totalBorrow.share;
+        return
+            collateralVal >=
+            // Moved exchangeRate here instead of dividing the other side to preserve more precision
+            (borrowPart * _totalBorrow.amount * EXCHANGE_RATE_PRECISION) / _totalBorrow.share;
     }
 
     /// @dev Checks if the user is solvent in the closed liquidation case at the end of the function body.
@@ -223,7 +225,11 @@ contract Portfolio is Ownable, IInitialization {
     }
 
     /// @dev Concrete implementation of `removeCollateral`.
-    function _removeCollateral(address token, address to, uint256 share) internal {
+    function _removeCollateral(
+        address token,
+        address to,
+        uint256 share
+    ) internal checkToken(token) {
         userCollateralShare[token][msg.sender] = userCollateralShare[token][msg.sender] - share;
         totalCollateralShare[token] = totalCollateralShare[token] - share;
         emit LogRemoveCollateral(msg.sender, to, share);
@@ -233,7 +239,11 @@ contract Portfolio is Ownable, IInitialization {
     /// @notice Removes `share` amount of collateral and transfers it to `to`.
     /// @param to The receiver of the shares.
     /// @param share Amount of shares to remove.
-    function removeCollateral(address token, address to, uint256 share) public solvent {
+    function removeCollateral(
+        address token,
+        address to,
+        uint256 share
+    ) public solvent {
         // accrue must be called because we check solvency
         accrue();
         _removeCollateral(token, to, share);
@@ -241,7 +251,7 @@ contract Portfolio is Ownable, IInitialization {
 
     /// @dev Concrete implementation of `borrow`.
     function _borrow(address to, uint256 amount) internal returns (uint256 part, uint256 share) {
-        uint256 feeAmount = amount * BORROW_OPENING_FEE / BORROW_OPENING_FEE_PRECISION;
+        uint256 feeAmount = (amount * BORROW_OPENING_FEE) / BORROW_OPENING_FEE_PRECISION;
         // A flat % fee is charged for any borrow
         (totalBorrow, part) = totalBorrow.add(amount + feeAmount, true);
         accrueInfo.feesEarned += uint128(feeAmount);
@@ -313,8 +323,8 @@ contract Portfolio is Ownable, IInitialization {
     // Any external call (except to TokenVault)
     uint8 internal constant ACTION_CALL = 30;
 
-    int256 internal constant USE_VALUE1 = - 1;
-    int256 internal constant USE_VALUE2 = - 2;
+    int256 internal constant USE_VALUE1 = -1;
+    int256 internal constant USE_VALUE2 = -2;
 
     /// @dev Helper function for choosing the correct value (`value1` or `value2`) depending on `inNum`.
     function _num(
@@ -336,7 +346,7 @@ contract Portfolio is Ownable, IInitialization {
         amount = int256(_num(amount, value1, value2));
         // Done this way to avoid stack too deep errors
         share = int256(_num(share, value1, value2));
-        return tokenVault.deposit{value : value}(token, msg.sender, to, uint256(amount), uint256(share));
+        return tokenVault.deposit{value: value}(token, msg.sender, to, uint256(amount), uint256(share));
     }
 
     /// @dev Helper function to withdraw from the `tokenVault`.
@@ -358,8 +368,10 @@ contract Portfolio is Ownable, IInitialization {
         uint256 value1,
         uint256 value2
     ) internal returns (bytes memory, uint8) {
-        (address callee, bytes memory callData, bool useValue1, bool useValue2, uint8 returnValues) =
-        abi.decode(data, (address, bytes, bool, bool, uint8));
+        (address callee, bytes memory callData, bool useValue1, bool useValue2, uint8 returnValues) = abi.decode(
+            data,
+            (address, bytes, bool, bool, uint8)
+        );
 
         if (useValue1 && !useValue2) {
             callData = abi.encodePacked(callData, value1);
@@ -371,7 +383,7 @@ contract Portfolio is Ownable, IInitialization {
 
         require(callee != address(tokenVault) && callee != address(this), "Core: can't call");
 
-        (bool success, bytes memory returnData) = callee.call{value : value}(callData);
+        (bool success, bytes memory returnData) = callee.call{value: value}(callData);
         require(success, "Core: call failed");
         return (returnData, returnValues);
     }
@@ -419,8 +431,10 @@ contract Portfolio is Ownable, IInitialization {
                 (bool updated, uint256 rate) = updateExchangeRate(token);
                 require((!must_update || updated) && rate > minRate && (maxRate == 0 || rate > maxRate), "Core: rate not ok");
             } else if (action == ACTION_TOKEN_VAULT_SETAPPROVAL) {
-                (address user, address _masterContract, bool approved, uint8 v, bytes32 r, bytes32 s) =
-                abi.decode(datas[i], (address, address, bool, uint8, bytes32, bytes32));
+                (address user, address _masterContract, bool approved, uint8 v, bytes32 r, bytes32 s) = abi.decode(
+                    datas[i],
+                    (address, address, bool, uint8, bytes32, bytes32)
+                );
                 tokenVault.setMasterContractApproval(user, _masterContract, approved, v, r, s);
             } else if (action == ACTION_TOKEN_VAULT_DEPOSIT) {
                 (value1, value2) = _tokenVaultDeposit(datas[i], values[i], value1, value2);
@@ -454,92 +468,98 @@ contract Portfolio is Ownable, IInitialization {
         }
     }
 
-    /// @notice Handles the liquidation of users' balances, once the users' amount of collateral is too low.
-    /// @param users An array of user addresses.
-    /// @param maxBorrowParts A one-to-one mapping to `users`, contains maximum (partial) borrow amounts (to liquidate) of the respective user.
-    /// @param to Address of the receiver in open liquidations if `swapper` is zero.
-    function liquidate(
-        address[] calldata users,
-        address to,
-        ISwapper[] memory swapper
-    ) public {
-        // Oracle can fail but we still need to allow liquidations
-        updateExchangeRateAll();
-        accrue();
+    // /// @notice Handles the liquidation of users' balances, once the users' amount of collateral is too low.
+    // /// @param users An array of user addresses.
+    // /// @param maxBorrowParts A one-to-one mapping to `users`, contains maximum (partial) borrow amounts (to liquidate) of the respective user.
+    // /// @param to Address of the receiver in open liquidations if `swapper` is zero.
+    // function liquidate(
+    //     address[] calldata users,
+    //     address to,
+    //     ISwapper[] memory swapper
+    // ) public {
+    //     // Oracle can fail but we still need to allow liquidations
+    //     updateExchangeRateAll();
+    //     accrue();
 
-        uint256[] memory allCollateralShare = new uint256[](collateral.length);
-        uint256 allBorrowAmount;
-        uint256 allBorrowPart;
-        AssetInfo memory _totalBorrow = totalBorrow;
-        for (uint256 i = 0; i < users.length; i++) {
-            address user = users[i];
-            uint256 totalPart;
-            if (!_isSolvent(user)) {
-                for (uint256 j = 0; j < collateral.length; j++) {
-                    address token = address(collateral[j]);
-                    uint256 collateralShare = userCollateralShare[token][user];
-                    if (collateralShare == 0) {
-                        continue;
-                    }
-                    uint256 collateralShareAmount = tokenVault.totals(collateral[index]).toAmount(collateralShare, false);
-                    uint256 borrowAmount = collateralShareAmount * LIQUIDATION_MULTIPLIER_PRECISION * EXCHANGE_RATE_PRECISION / (LIQUIDATION_MULTIPLIER * exchangeRate[token]);
-                    uint256 borrowPart = _totalBorrow.toShare(borrowAmount, false);
-                    totalPart += borrowPart;
-                }
-                if (totalPart == 0) {
-                    continue;
-                }
-                uint256 rate = 100;
-                if (totalPart > userBorrowPart[user]) {
-                    rate = userBorrowPart[user] * 100 / totalPart;
-                }
-                uint256 targetPart = totalPart * rate / 100;
-                allBorrowPart += targetPart;
-                allBorrowAmount += _totalBorrow.toAmount(targetPart, false);
-                for (uint256 j = 0; j < collateral.length; j++) {
-                    address token = address(collateral[j]);
-                    uint256 collateralShare = userCollateralShare[token][user];
-                    if (collateralShare == 0) {
-                        continue;
-                    }
-                    if (rate == 100) {
-                        userCollateralShare[token][user] = 0;
-                        allCollateralShare[j] += collateralShare;
-                    } else {
-                        collateralShare = collateralShare * rate / 100;
-                        userCollateralShare[token][user] -= collateralShare;
-                        allCollateralShare[j] += collateralShare;
-                    }
-                }
-            }
-        }
-        require(allBorrowAmount != 0, "Core: all are solvent");
-        _totalBorrow.amount -= allBorrowAmount.toUint128();
-        _totalBorrow.share -= allBorrowPart.toUint128();
-        totalBorrow = _totalBorrow;
+    //     uint256[] memory allCollateralShare = new uint256[](collateral.length);
+    //     uint256 allBorrowAmount;
+    //     uint256 allBorrowPart;
+    //     AssetInfo memory _totalBorrow = totalBorrow;
+    //     for (uint256 i = 0; i < users.length; i++) {
+    //         address user = users[i];
+    //         uint256 totalPart;//total user borrow part
+    //         
+    //         if (!_isSolvent(user)) {
+    //             for (uint256 j = 0; j < collateral.length; j++) {
+    //                 address token = address(collateral[j]);
+    //                 uint256 collateralShare = userCollateralShare[token][user];
+    //                 if (collateralShare == 0) {
+    //                     continue;
+    //                 }
+    //                 uint256 collateralShareAmount = tokenVault.totals(collateral[index]).toAmount(collateralShare, false);
+    //                 uint256 borrowAmount = (collateralShareAmount * LIQUIDATION_MULTIPLIER_PRECISION * EXCHANGE_RATE_PRECISION) /
+    //                     (LIQUIDATION_MULTIPLIER * exchangeRate[token]);
+    //                 uint256 borrowPart = _totalBorrow.toShare(borrowAmount, false);
+    //                 totalPart += borrowPart;
+    //             }
+    //             if (totalPart == 0) {
+    //                 continue;
+    //             }
+    //             uint256 rate = 100;
+    //             if (totalPart > userBorrowPart[user]) {
+    //                 rate = (userBorrowPart[user] * 100) / totalPart;
+    //             }
+    //             uint256 targetPart = (totalPart * rate) / 100;
+    //             allBorrowPart += targetPart;
+    //             allBorrowAmount += _totalBorrow.toAmount(targetPart, false);
+    //             for (uint256 j = 0; j < collateral.length; j++) {
+    //                 address token = address(collateral[j]);
+    //                 uint256 collateralShare = userCollateralShare[token][user];
+    //                 if (collateralShare == 0) {
+    //                     continue;
+    //                 }
+    //                 if (rate == 100) {
+    //                     userCollateralShare[token][user] = 0;
+    //                     allCollateralShare[j] += collateralShare;
+    //                 } else {
+    //                     collateralShare = (collateralShare * rate) / 100;
+    //                     userCollateralShare[token][user] -= collateralShare;
+    //                     allCollateralShare[j] += collateralShare;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     require(allBorrowAmount != 0, "Core: all are solvent");
+    //     _totalBorrow.amount -= allBorrowAmount.toUint128();
+    //     _totalBorrow.share -= allBorrowPart.toUint128();
+    //     totalBorrow = _totalBorrow;
 
+    //     // Apply a percentual fee share to sSpell holders
+    //     {
+    //         uint256 distributionAmount = ((((allBorrowAmount * LIQUIDATION_MULTIPLIER) / LIQUIDATION_MULTIPLIER_PRECISION) - allBorrowAmount) *
+    //             DISTRIBUTION_PART) / DISTRIBUTION_PRECISION;
+    //         // Distribution Amount
+    //         allBorrowAmount += distributionAmount;
+    //         accrueInfo.feesEarned += distributionAmount.toUint128();
+    //     }
 
-        // Apply a percentual fee share to sSpell holders
-        {
-            uint256 distributionAmount = ((allBorrowAmount * LIQUIDATION_MULTIPLIER / LIQUIDATION_MULTIPLIER_PRECISION) - allBorrowAmount) * DISTRIBUTION_PART / DISTRIBUTION_PRECISION;
-            // Distribution Amount
-            allBorrowAmount += distributionAmount;
-            accrueInfo.feesEarned += distributionAmount.toUint128();
-        }
-        uint256 allBorrowShare = tokenVault.toShare(clink, allBorrowAmount, true);
+    //     uint256 allBorrowShare = tokenVault.toShare(clink, allBorrowAmount, true);
 
-        // Swap using a swapper freely chosen by the caller
-        // Open (flash) liquidation: get proceeds first and provide the borrow after
-        for (uint i = 0; i < collateral.length; i++) {
-            totalCollateralShare[address(collateral[i])] -= allCollateralShare[i];
-            tokenVault.transfer(collateral[i], address(this), to, allCollateralShare[i]);
-            if (swapper[i] != ISwapper(address(0))) {
-                swapper[i].swap(collateral[i], clink, msg.sender, 0, allCollateralShare[i]);
-            }
-        }
-        // msg.sender will be rewarded the stable coin for the extra collateral share(allCollateralShare).
-        tokenVault.transfer(clink, msg.sender, address(this), allBorrowShare);
-    }
+    //     // Swap using a swapper freely chosen by the caller
+    //     // Open (flash) liquidation: get proceeds first and provide the borrow after
+    //     for (uint i = 0; i < collateral.length; i++) {
+    //         if (allCollateralShare[i] == 0) {
+    //             continue;
+    //         }
+    //         totalCollateralShare[address(collateral[i])] -= allCollateralShare[i];
+    //         tokenVault.transfer(collateral[i], address(this), to, allCollateralShare[i]);
+    //         if (swapper[i] != ISwapper(address(0))) {
+    //             swapper[i].swap(collateral[i], clink, msg.sender, 0, allCollateralShare[i]);
+    //         }
+    //     }
+    //     // msg.sender will be rewarded the stable coin for the extra collateral share(allCollateralShare).
+    //     tokenVault.transfer(clink, msg.sender, address(this), allBorrowShare);
+    // }
 
     /// @notice Withdraws the fees accumulated.
     function withdrawFees() public {
@@ -569,8 +589,22 @@ contract Portfolio is Ownable, IInitialization {
         IERC20Burnable(address(clink)).burn(amount);
     }
 
-    modifier checkToken(address token){
-        require(tokenApprove[token] == true, 'token not supported');
+    modifier checkToken(address token) {
+        require(tokenApprove[token] == true, "token not supported");
         _;
+    }
+
+    function addCollateralToken(
+        IERC20 _token,
+        IOracle initOracle,
+        bytes memory initData
+    ) public {
+        if (collateral.length > 0) {
+            require(msg.sender == masterContract.owner(), "Caller is not the owner");
+        }
+        collateral.push(_token);
+        oracle[address(_token)] = initOracle;
+        oracleData[address(_token)] = initData;
+        tokenApprove[address(_token)] = true;
     }
 }
