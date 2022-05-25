@@ -39,7 +39,7 @@ module.exports = {
             tags: ["local"],
         },
         kovan: {
-            url: "https://kovan.infura.io/v3/938ec750ced64edda8fc17c9e135d0f6",
+            url: "https://kovan.infura.io/v3/9ff6a3fd93f84eaa8638302947bf8bac",
             accounts: [
                 `b374d026f9d1f59232abaaf6836d281d3971315a130dbe15e58ba957632433bf`,
             ],

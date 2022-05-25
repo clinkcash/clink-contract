@@ -24,6 +24,7 @@ contract Portfolio is Ownable, IInitialization {
     event LogExchangeRate(uint256 rate);
     event LogAccrue(uint128 accruedAmount);
     event LogAddCollateral(address indexed from, address indexed to, uint256 share);
+    event LogNewCollateral(address indexed token, uint256 index);
     event LogRemoveCollateral(address indexed from, address indexed to, uint256 share);
     event LogBorrow(address indexed from, address indexed to, uint256 amount, uint256 part);
     event LogRepay(address indexed from, address indexed to, uint256 amount, uint256 part);
@@ -94,8 +95,15 @@ contract Portfolio is Ownable, IInitialization {
         IERC20 initCollateral;
         IOracle initOracle;
         bytes memory initData;
-        (initCollateral, initOracle, initData, accrueInfo.INTEREST_PER_SECOND, LIQUIDATION_MULTIPLIER, COLLATERIZATION_RATE, BORROW_OPENING_FEE) = abi
-            .decode(data, (IERC20, IOracle, bytes, uint64, uint256, uint256, uint256));
+        (
+            initCollateral,
+            initOracle,
+            initData,
+            accrueInfo.INTEREST_PER_SECOND,
+            LIQUIDATION_MULTIPLIER,
+            COLLATERIZATION_RATE,
+            BORROW_OPENING_FEE
+        ) = abi.decode(data, (IERC20, IOracle, bytes, uint64, uint256, uint256, uint256));
         addCollateralToken(initCollateral, initOracle, initData);
         require(collateral.length > 0, "Core: bad pair");
     }
@@ -117,7 +125,8 @@ contract Portfolio is Ownable, IInitialization {
         }
 
         // Accrue interest
-        uint128 extraAmount = ((uint256(_totalBorrow.amount) * _accrueInfo.INTEREST_PER_SECOND * elapsedTime) / 1e18).toUint128();
+        uint128 extraAmount = ((uint256(_totalBorrow.amount) * _accrueInfo.INTEREST_PER_SECOND * elapsedTime) / 1e18)
+            .toUint128();
         _totalBorrow.amount += extraAmount;
 
         _accrueInfo.feesEarned += extraAmount;
@@ -413,7 +422,10 @@ contract Portfolio is Ownable, IInitialization {
                 status.hasAccrued = true;
             }
             if (action == ACTION_ADD_COLLATERAL) {
-                (address token, int256 share, address to, bool skim) = abi.decode(datas[i], (address, int256, address, bool));
+                (address token, int256 share, address to, bool skim) = abi.decode(
+                    datas[i],
+                    (address, int256, address, bool)
+                );
                 addCollateral(token, to, skim, _num(share, value1, value2));
             } else if (action == ACTION_REPAY) {
                 (int256 part, address to, bool skim) = abi.decode(datas[i], (int256, address, bool));
@@ -427,9 +439,15 @@ contract Portfolio is Ownable, IInitialization {
                 (value1, value2) = _borrow(to, _num(amount, value1, value2));
                 status.needsSolvencyCheck = true;
             } else if (action == ACTION_UPDATE_EXCHANGE_RATE) {
-                (address token, bool must_update, uint256 minRate, uint256 maxRate) = abi.decode(datas[i], (address, bool, uint256, uint256));
+                (address token, bool must_update, uint256 minRate, uint256 maxRate) = abi.decode(
+                    datas[i],
+                    (address, bool, uint256, uint256)
+                );
                 (bool updated, uint256 rate) = updateExchangeRate(token);
-                require((!must_update || updated) && rate > minRate && (maxRate == 0 || rate > maxRate), "Core: rate not ok");
+                require(
+                    (!must_update || updated) && rate > minRate && (maxRate == 0 || rate > maxRate),
+                    "Core: rate not ok"
+                );
             } else if (action == ACTION_TOKEN_VAULT_SETAPPROVAL) {
                 (address user, address _masterContract, bool approved, uint8 v, bytes32 r, bytes32 s) = abi.decode(
                     datas[i],
@@ -444,7 +462,10 @@ contract Portfolio is Ownable, IInitialization {
                 (IERC20 token, address to, int256 share) = abi.decode(datas[i], (IERC20, address, int256));
                 tokenVault.transfer(token, msg.sender, to, _num(share, value1, value2));
             } else if (action == ACTION_TOKEN_VAULT_TRANSFER_MULTIPLE) {
-                (IERC20 token, address[] memory tos, uint256[] memory shares) = abi.decode(datas[i], (IERC20, address[], uint256[]));
+                (IERC20 token, address[] memory tos, uint256[] memory shares) = abi.decode(
+                    datas[i],
+                    (IERC20, address[], uint256[])
+                );
                 tokenVault.transferMultiple(token, msg.sender, tos, shares);
             } else if (action == ACTION_CALL) {
                 (bytes memory returnData, uint8 returnValues) = _call(values[i], datas[i], value1, value2);
@@ -488,7 +509,7 @@ contract Portfolio is Ownable, IInitialization {
     //     for (uint256 i = 0; i < users.length; i++) {
     //         address user = users[i];
     //         uint256 totalPart;//total user borrow part
-    //         
+    //
     //         if (!_isSolvent(user)) {
     //             for (uint256 j = 0; j < collateral.length; j++) {
     //                 address token = address(collateral[j]);
@@ -606,5 +627,6 @@ contract Portfolio is Ownable, IInitialization {
         oracle[address(_token)] = initOracle;
         oracleData[address(_token)] = initData;
         tokenApprove[address(_token)] = true;
+        emit LogNewCollateral(address(_token), collateral.length - 1);
     }
 }
