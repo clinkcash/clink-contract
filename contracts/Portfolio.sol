@@ -42,7 +42,7 @@ contract Portfolio is Ownable, IInitialization {
     // Per clone variables
     // Clone init settings
     IERC20[] public collateral; //collateral list
-    mapping(address => bool) tokenApprove; //check token status
+    mapping(address => bool) public tokenApprove; //check token status
     mapping(address => IOracle) public oracle;
     mapping(address => bytes) public oracleData;
 
@@ -225,7 +225,7 @@ contract Portfolio is Ownable, IInitialization {
         address to,
         bool skim,
         uint256 share
-    ) public {
+    ) public checkToken(token) {
         userCollateralShare[token][to] += share;
         uint256 oldTotalCollateralShare = totalCollateralShare[token];
         totalCollateralShare[token] = oldTotalCollateralShare + share;
@@ -238,7 +238,7 @@ contract Portfolio is Ownable, IInitialization {
         address token,
         address to,
         uint256 share
-    ) internal checkToken(token) {
+    ) internal {
         userCollateralShare[token][msg.sender] = userCollateralShare[token][msg.sender] - share;
         totalCollateralShare[token] = totalCollateralShare[token] - share;
         emit LogRemoveCollateral(msg.sender, to, share);
@@ -252,7 +252,7 @@ contract Portfolio is Ownable, IInitialization {
         address token,
         address to,
         uint256 share
-    ) public solvent {
+    ) public checkToken(token) solvent {
         // accrue must be called because we check solvency
         accrue();
         _removeCollateral(token, to, share);
@@ -620,9 +620,8 @@ contract Portfolio is Ownable, IInitialization {
         IOracle initOracle,
         bytes memory initData
     ) public {
-        if (collateral.length > 0) {
-            require(msg.sender == masterContract.owner(), "Caller is not the owner");
-        }
+        require(msg.sender == masterContract.owner(), "Caller is not the owner");
+        require(!tokenApprove[address(_token)],"token added");
         collateral.push(_token);
         oracle[address(_token)] = initOracle;
         oracleData[address(_token)] = initData;
