@@ -2,7 +2,6 @@
 
 ### kovan test address
 
-
 ```
 tokenvault :0xcb6e3bb46db170f8b9b3d026b19b4ff638577639
 tokens:
@@ -13,7 +12,6 @@ ftn:0x5a06e2Ab09A40B5D31f2AB7818652c1d1b50F0D0
 usdt:0xC7C9665340cE2f3393A358184ba734b32E27cE73
 
 masterContract:
-masterContract : 0x6BB4929267f2030632C64D4701E0F6805aD100B4
 portfolio : 0xfb827c0974ad266066249eb29f65df5b3b1f742b
 
 cores:
@@ -25,37 +23,9 @@ ftn-oracle : 0x39ea7cDdD8cf0f39c23B32348A069023A3cC9444
 usdt-oracle:0x432F1491e72453a65328D035C9487a764ce3062e
 weth-core:0x531110484aF39BEE9b6Ace07dF5be0f41268DEA5
 
-exchange url:
-csushi <-> clk : https://app.uniswap.org/#/swap?chain=kovan
-
 how to get wbtc?
 can mint wbtc on the opensource mock contract in kovan scan
 ```
-
-### rinkeby test address
-```
-weth: 0xa977088F01218A17cC76B7ab0cdc4Ad08DEFb9C2
-wbtc: 0x044d5401EE010A78f7E3799533b955f585522cFA
-clink: 0x000c978d290D32192642f90A7bf77baC95De8567
-tokenVault: 0x3E52D4BFE370DB56cA28E772C2C81cB7DeeccA44
-oracle: 0x51635993b4C01F17D11543a92804e0cD7a03cBbf
-masterContract : 0x3F5Be5F60E298eddE2Df5e0337d7690De0064ed0
-core : 0x10bd432a812c017178259a6c45e64c8e7009bfd1
-swapper: 0xd2115Cb101b7aA2e9d7c1FD825EE27E5A69FCce7
-```
-
-### goerli test address
-```
-weth: 0xa977088F01218A17cC76B7ab0cdc4Ad08DEFb9C2
-wbtc: 0x044d5401EE010A78f7E3799533b955f585522cFA
-clink: 0x000c978d290D32192642f90A7bf77baC95De8567
-tokenVault: 0x3E52D4BFE370DB56cA28E772C2C81cB7DeeccA44
-oracle: 0x51635993b4C01F17D11543a92804e0cD7a03cBbf
-masterContract : 0x3F5Be5F60E298eddE2Df5e0337d7690De0064ed0
-core : 0x10bd432a812c017178259a6c45e64c8e7009bfd1
-swapper: 0xd2115Cb101b7aA2e9d7c1FD825EE27E5A69FCce7
-```
-
 
 # Clink
 
@@ -133,5 +103,3 @@ npx hardhat verify --network ropsten DEPLOYED_CONTRACT_ADDRESS "Hello, Hardhat!"
 ## Licence
 
 UNLICENCED
-
-
