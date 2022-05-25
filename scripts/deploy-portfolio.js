@@ -27,12 +27,12 @@ async function main() {
   this.clink = await this.Clink.attach('0xCb8A8F4721b9b8e4487d88a838BcD31b08E466c0')
 
   this.TokenVault = await ethers.getContractFactory("TokenVault");
-  this.tokenVault = await this.TokenVault.attach("0xcb6e3bb46db170f8b9b3d026b19b4ff638577639")
+  this.tokenVault = await this.TokenVault.attach("0x97be1ca3a78ee3d9eacfe1ed8bb64bf14a8a9e03")
 
   this.Portfolio = await ethers.getContractFactory("Portfolio");
-  this.masterContract = await this.Portfolio.attach('0x443fc512f2cbe5ec50109601a2780c2a95b6dc0f')
-  // this.masterContract = await this.Portfolio.deploy(this.tokenVault.address, this.clink.address);
-  // await this.masterContract.deployed();
+  // this.masterContract = await this.Portfolio.attach('0xf99a76f00d73ff1f3c135048250046b462ca75f7')
+  this.masterContract = await this.Portfolio.deploy(this.tokenVault.address, this.clink.address);
+  await this.masterContract.deployed();
 
   const INTEREST_CONVERSION = 1e18 / (365.25 * 3600 * 24) / 100;
   const interest = parseInt(String(2 * INTEREST_CONVERSION));
@@ -54,11 +54,11 @@ async function main() {
     ]
   );
 
-  // const tx = await (await this.tokenVault.deploy(this.masterContract.address, initData, true)).wait();
+  const tx = await (await this.tokenVault.deploy(this.masterContract.address, initData, true)).wait();
 
-  // const deployEvent = tx?.events?.[0];
-  // const coreAddress = deployEvent?.args?.cloneAddress;
-  this.portfolio = this.Portfolio.attach('0xfb827c0974ad266066249eb29f65df5b3b1f742b');
+  const deployEvent = tx?.events?.[1];
+  const coreAddress = deployEvent?.args?.cloneAddress;
+  this.portfolio = this.Portfolio.attach(coreAddress);
 
   await (await this.portfolio.addCollateralToken(
     this.USDT.address,

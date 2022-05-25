@@ -68,9 +68,10 @@ describe("demo", function () {
         );
 
         const tx = await (await this.tokenVault.deploy(this.masterContract.address, initData, true)).wait();
+        console.info(tx)
 
-        const deployEvent = tx?.events?.[0];
-        const coreAddress = deployEvent?.args?.cloneAddress;
+        const deployEvent = tx?.events?.[1];
+        let coreAddress = deployEvent?.args?.cloneAddress;
         this.portfolio = this.Portfolio.attach(coreAddress);
 
         await this.portfolio.addCollateralToken(

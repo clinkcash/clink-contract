@@ -28,12 +28,12 @@ async function main() {
   this.clink = await this.Clink.attach('0xCb8A8F4721b9b8e4487d88a838BcD31b08E466c0')
 
   this.TokenVault = await ethers.getContractFactory("TokenVault");
-  this.tokenVault = await this.TokenVault.attach("0xcb6e3bb46db170f8b9b3d026b19b4ff638577639")
+  this.tokenVault = await this.TokenVault.attach("0x97be1ca3a78ee3d9eacfe1ed8bb64bf14a8a9e03")
 
   this.Portfolio = await ethers.getContractFactory("Portfolio");
-  this.masterContract = await this.Portfolio.attach('0x443fc512f2cbe5ec50109601a2780c2a95b6dc0f')
+  this.masterContract = await this.Portfolio.attach('0xa010B051403323232F3c85409956C9d18D52055a')
 
-  this.portfolio = this.Portfolio.attach('0xfb827c0974ad266066249eb29f65df5b3b1f742b');
+  this.portfolio = this.Portfolio.attach('0x45869Fa5851433666e1f7BfA74504B592887dBd1');
 
   this.parseSignature = (signature) => {
     const parsedSignature = signature.substring(2);
@@ -135,14 +135,14 @@ async function main() {
     );
   };
 
-  // await this.WBTC.approve(
-  //   (await this.tokenVault.address).toString(),
-  //   "0xffffffffffffffffffffffffffffffffffffffffffffff"
-  // );
-  // await this.WETH.approve(
-  //   (await this.tokenVault.address).toString(),
-  //   "0xffffffffffffffffffffffffffffffffffffffffffffff"
-  // );
+  await this.WBTC.approve(
+    (await this.tokenVault.address).toString(),
+    "0xffffffffffffffffffffffffffffffffffffffffffffff"
+  );
+  await this.WETH.approve(
+    (await this.tokenVault.address).toString(),
+    "0xffffffffffffffffffffffffffffffffffffffffffffff"
+  );
 
   // get approve data
   const approveData = await this.getApproveData(this.alice.address);
