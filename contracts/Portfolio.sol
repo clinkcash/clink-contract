@@ -21,11 +21,11 @@ contract Portfolio is Ownable, IInitialization {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
-    event LogExchangeRate(uint256 rate);
+    event LogExchangeRate(address indexed token, uint256 rate);
     event LogAccrue(uint128 accruedAmount);
-    event LogAddCollateral(address indexed from, address indexed to, uint256 share);
+    event LogAddCollateral(address indexed token, address indexed from, address indexed to, uint256 share);
     event LogNewCollateral(address indexed token, uint256 index);
-    event LogRemoveCollateral(address indexed from, address indexed to, uint256 share);
+    event LogRemoveCollateral(address indexed token, address indexed from, address indexed to, uint256 share);
     event LogBorrow(address indexed from, address indexed to, uint256 amount, uint256 part);
     event LogRepay(address indexed from, address indexed to, uint256 amount, uint256 part);
     event LogFeeTo(address indexed newFeeTo);
@@ -179,7 +179,7 @@ contract Portfolio is Ownable, IInitialization {
 
         if (updated) {
             exchangeRate[token] = rate;
-            emit LogExchangeRate(rate);
+            emit LogExchangeRate(token, rate);
         } else {
             // Return the old rate if fetching wasn't successful
             rate = exchangeRate[token];
@@ -230,7 +230,7 @@ contract Portfolio is Ownable, IInitialization {
         uint256 oldTotalCollateralShare = totalCollateralShare[token];
         totalCollateralShare[token] = oldTotalCollateralShare + share;
         _addTokens(IERC20(token), share, oldTotalCollateralShare, skim);
-        emit LogAddCollateral(skim ? address(tokenVault) : msg.sender, to, share);
+        emit LogAddCollateral(token, skim ? address(tokenVault) : msg.sender, to, share);
     }
 
     /// @dev Concrete implementation of `removeCollateral`.
@@ -241,7 +241,7 @@ contract Portfolio is Ownable, IInitialization {
     ) internal {
         userCollateralShare[token][msg.sender] = userCollateralShare[token][msg.sender] - share;
         totalCollateralShare[token] = totalCollateralShare[token] - share;
-        emit LogRemoveCollateral(msg.sender, to, share);
+        emit LogRemoveCollateral(token, msg.sender, to, share);
         tokenVault.transfer(IERC20(token), address(this), to, share);
     }
 
@@ -507,8 +507,8 @@ contract Portfolio is Ownable, IInitialization {
         AssetInfo memory _totalBorrow = totalBorrow;
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
-            uint256 totalPart;//total user borrow part
-    
+            uint256 totalPart; //total user borrow part
+
             if (!_isSolvent(user)) {
                 for (uint256 j = 0; j < collateral.length; j++) {
                     address token = address(collateral[j]);
@@ -517,8 +517,9 @@ contract Portfolio is Ownable, IInitialization {
                         continue;
                     }
                     uint256 collateralShareAmount = tokenVault.totals(collateral[j]).toAmount(collateralShare, false);
-                    uint256 borrowAmount = (collateralShareAmount * LIQUIDATION_MULTIPLIER_PRECISION * EXCHANGE_RATE_PRECISION) /
-                        (LIQUIDATION_MULTIPLIER * exchangeRate[token]);
+                    uint256 borrowAmount = (collateralShareAmount *
+                        LIQUIDATION_MULTIPLIER_PRECISION *
+                        EXCHANGE_RATE_PRECISION) / (LIQUIDATION_MULTIPLIER * exchangeRate[token]);
                     uint256 borrowPart = _totalBorrow.toShare(borrowAmount, false);
                     totalPart += borrowPart;
                 }
@@ -556,8 +557,8 @@ contract Portfolio is Ownable, IInitialization {
 
         // Apply a percentual fee share to sSpell holders
         {
-            uint256 distributionAmount = ((((allBorrowAmount * LIQUIDATION_MULTIPLIER) / LIQUIDATION_MULTIPLIER_PRECISION) - allBorrowAmount) *
-                DISTRIBUTION_PART) / DISTRIBUTION_PRECISION;
+            uint256 distributionAmount = ((((allBorrowAmount * LIQUIDATION_MULTIPLIER) /
+                LIQUIDATION_MULTIPLIER_PRECISION) - allBorrowAmount) * DISTRIBUTION_PART) / DISTRIBUTION_PRECISION;
             // Distribution Amount
             allBorrowAmount += distributionAmount;
             accrueInfo.feesEarned += distributionAmount.toUint128();
