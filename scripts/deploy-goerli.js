@@ -16,15 +16,11 @@ async function main() {
   const collaterals = [
     {
       token: '0x32Cd5AA21a015339fF39Cb9ac283DF43fF4B8955',
-      oracle: '0xD97B23732C232EAc02bDBEbdDB6a737a4C718d44'
+      oracle: '0x95488E3988E66BAEDFaC328b79C79E5F1e778140'
     },
     {
       token: '0x5654C0B6DF8d31c95dc20533fC66296D8A093a89',
-      oracle: '0x393Bc0F1bb048EFf8a3358B7D5a9Ca2019D0cBc5'
-    },
-    {
-      token: '0x70A0587B7C6D2fdb35AFae97Cf716a3317bC5feB',
-      oracle: '0xDF38bE79C01Cc1635e8FEa59f8F47f7c15b165F3'
+      oracle: '0xc4F62bb197c7F2753C151B48e02f63F5ad6744f4'
     },
     {
       token: '0xD07F6e03DaC20d88E35Ba414C2CFcb6BFE934c99',
