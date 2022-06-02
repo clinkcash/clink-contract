@@ -32,8 +32,8 @@ pairs:
 weth-usdt:0x12bcF97b855514441e5BBD3fD9a5fdbC2398C14d
 wbtc-usdt:0x8c3C98a5c3F1dF08749cE564cA88369a6D99Ec40
 clink-usdt:0x5D7C0F872c792A53d594E84AFD0B7EE06721e478
-weth-ftn:
-weth-clink:
+weth-ftn: 0x2DB9A312922Eeeea95e627C3474ba1D4395c12D9
+weth-clink: 0xde72a63e852881FA09c27a989DBa0516949Ea0e1
 
 uniswap:https://app.uniswap.org/#/swap?chain=goerli
 weth in tokenvault: 0x146cCE28E076a43c02065B0695F27470aCb5715E
