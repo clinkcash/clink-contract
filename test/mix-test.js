@@ -1,5 +1,5 @@
 // const {expect} = require("chai");
-const {ethers, waffle, network} = require("hardhat");
+const { ethers, waffle, network } = require("hardhat");
 describe("demo", function () {
     before(async function () {
         this.network = network;
@@ -37,8 +37,8 @@ describe("demo", function () {
         this.tokenVault = await this.TokenVault.deploy(this.weth.address);
         await this.tokenVault.deployed();
 
-        this.Portfolio = await ethers.getContractFactory("Portfolio");
-        this.masterContract = await this.Portfolio.deploy(this.tokenVault.address, this.clink.address);
+        this.Mix = await ethers.getContractFactory("Mix");
+        this.masterContract = await this.Mix.deploy(this.tokenVault.address, this.clink.address);
         await this.masterContract.deployed();
 
         this.OracleMock = await ethers.getContractFactory("OracleMock");
@@ -72,9 +72,9 @@ describe("demo", function () {
 
         const deployEvent = tx?.events?.[1];
         let coreAddress = deployEvent?.args?.cloneAddress;
-        this.portfolio = this.Portfolio.attach(coreAddress);
+        this.mix = this.Mix.attach(coreAddress);
 
-        await this.portfolio.addCollateralToken(
+        await this.mix.addCollateralToken(
             this.TEST2.address,
             this.oracle.address,
             "0x0000000000000000000000000000000000000000"
@@ -85,7 +85,7 @@ describe("demo", function () {
         await this.tokenVault.deposit(
             this.clink.address,
             this.alice.address,
-            this.portfolio.address,
+            this.mix.address,
             "208000000000000000000000",
             "0"
         );
@@ -97,7 +97,7 @@ describe("demo", function () {
         console.info("tokenVault:", this.tokenVault.address);
         console.info("oracle:", this.oracle.address);
         console.info("masterContract :", this.masterContract.address);
-        console.info("Portfolio :", this.Portfolio.address);
+        console.info("Mix :", this.Mix.address);
 
         this.parseSignature = (signature) => {
             const parsedSignature = signature.substring(2);
@@ -116,7 +116,7 @@ describe("demo", function () {
         //
         this.getApproveData = async (account) => {
             const verifyingContract = await this.tokenVault.address;
-            const masterContract = (await this.portfolio.masterContract()).toString();
+            const masterContract = (await this.mix.masterContract()).toString();
             const nonce = await this.tokenVault.nonces(account);
             const chainId = this.provider._network.chainId;
 
@@ -129,11 +129,11 @@ describe("demo", function () {
             // The named list of all type definitions
             const types = {
                 SetMasterContractApproval: [
-                    {name: "warning", type: "string"},
-                    {name: "user", type: "address"},
-                    {name: "masterContract", type: "address"},
-                    {name: "approved", type: "bool"},
-                    {name: "nonce", type: "uint256"},
+                    { name: "warning", type: "string" },
+                    { name: "user", type: "address" },
+                    { name: "masterContract", type: "address" },
+                    { name: "approved", type: "bool" },
+                    { name: "nonce", type: "uint256" },
                 ],
             };
 
@@ -262,7 +262,7 @@ describe("demo", function () {
 
         console.info((await this.clink.balanceOf(this.alice.address)).toString());
 
-        const result = await this.portfolio.cook(
+        const result = await this.mix.cook(
             [11, 11, 24, 20, 20, 10, 10, 5, 21],
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [

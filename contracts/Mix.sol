@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 /// @title Core
 /// @dev This contract allows contract calls to any contract (except TokenVault)
 /// from arbitrary callers thus, don't trust calls from this contract in any circumstances.
-contract Portfolio is Ownable, IInitialization {
+contract Mix is Ownable, IInitialization {
     using AssetInfoLibrary for AssetInfo;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -33,7 +33,7 @@ contract Portfolio is Ownable, IInitialization {
 
     // Immutables (for MasterContract and all clones)
     ITokenVault public immutable tokenVault;
-    Portfolio public immutable masterContract;
+    Mix public immutable masterContract;
     IERC20 public immutable clink;
 
     // MasterContract variables

@@ -29,9 +29,9 @@ async function main() {
   this.TokenVault = await ethers.getContractFactory("TokenVault");
   this.tokenVault = await this.TokenVault.attach("0x97be1ca3a78ee3d9eacfe1ed8bb64bf14a8a9e03")
 
-  this.Portfolio = await ethers.getContractFactory("Portfolio");
-  // this.masterContract = await this.Portfolio.attach('0xf99a76f00d73ff1f3c135048250046b462ca75f7')
-  this.masterContract = await this.Portfolio.deploy(this.tokenVault.address, this.clink.address);
+  this.Mix = await ethers.getContractFactory("Mix");
+  // this.masterContract = await this.Mix.attach('0xf99a76f00d73ff1f3c135048250046b462ca75f7')
+  this.masterContract = await this.Mix.deploy(this.tokenVault.address, this.clink.address);
   await this.masterContract.deployed();
 
   const INTEREST_CONVERSION = 1e18 / (365.25 * 3600 * 24) / 100;
@@ -58,15 +58,15 @@ async function main() {
 
   const deployEvent = tx?.events?.[1];
   const coreAddress = deployEvent?.args?.cloneAddress;
-  this.portfolio = this.Portfolio.attach(coreAddress);
+  this.mix = this.Mix.attach(coreAddress);
 
-  await (await this.portfolio.addCollateralToken(
+  await (await this.mix.addCollateralToken(
     this.USDT.address,
     '0x432F1491e72453a65328D035C9487a764ce3062e',
     "0x0000000000000000000000000000000000000000"
   )).wait();
 
-  await (await this.portfolio.addCollateralToken(
+  await (await this.mix.addCollateralToken(
     this.WETH.address,
     '0x531110484aF39BEE9b6Ace07dF5be0f41268DEA5',
     "0x0000000000000000000000000000000000000000"
@@ -77,7 +77,7 @@ async function main() {
   await (await this.tokenVault.deposit(
     this.clink.address,
     this.alice.address,
-    this.portfolio.address,
+    this.mix.address,
     "208000000000000000000000",
     "0"
   )).wait();
@@ -85,7 +85,7 @@ async function main() {
   console.info("clink:", this.clink.address);
   console.info("tokenVault:", this.tokenVault.address);
   console.info("masterContract :", this.masterContract.address);
-  console.info("Portfolio :", this.portfolio.address);
+  console.info("Mix :", this.mix.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

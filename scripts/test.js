@@ -30,10 +30,10 @@ async function main() {
   this.TokenVault = await ethers.getContractFactory("TokenVault");
   this.tokenVault = await this.TokenVault.attach("0x97be1ca3a78ee3d9eacfe1ed8bb64bf14a8a9e03")
 
-  this.Portfolio = await ethers.getContractFactory("Portfolio");
-  this.masterContract = await this.Portfolio.attach('0xa010B051403323232F3c85409956C9d18D52055a')
+  this.Mix = await ethers.getContractFactory("Mix");
+  this.masterContract = await this.Mix.attach('0xa010B051403323232F3c85409956C9d18D52055a')
 
-  this.portfolio = this.Portfolio.attach('0x45869Fa5851433666e1f7BfA74504B592887dBd1');
+  this.mix = this.Mix.attach('0x45869Fa5851433666e1f7BfA74504B592887dBd1');
 
   this.parseSignature = (signature) => {
     const parsedSignature = signature.substring(2);
@@ -52,7 +52,7 @@ async function main() {
   //
   this.getApproveData = async (account) => {
     const verifyingContract = await this.tokenVault.address;
-    const masterContract = (await this.portfolio.masterContract()).toString();
+    const masterContract = (await this.mix.masterContract()).toString();
     const nonce = await this.tokenVault.nonces(account);
     const chainId = this.provider._network.chainId;
 
@@ -185,8 +185,8 @@ async function main() {
 
   console.info((await this.clink.balanceOf(this.alice.address)).toString());
 
-  
-  const result = await this.portfolio.cook(
+
+  const result = await this.mix.cook(
     [11, 11, 24, 20, 20, 10, 10, 5, 21],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [
