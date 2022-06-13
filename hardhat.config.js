@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 require("@nomiclabs/hardhat-waffle");
+require('hardhat-contract-sizer');
+require("@nomiclabs/hardhat-etherscan");
+require('solidity-coverage')
 
 const accounts = {
     mnemonic: "test test test test test test test test test test test junk",
@@ -27,18 +30,24 @@ module.exports = {
         },
     },
     networks: {
+        hardhat: {
+            // allowUnlimitedContractSize:true,
+        },
         localhost: {
             live: false,
             saveDeployments: true,
             tags: ["local"],
         },
         kovan: {
-            url: `https://kovan.infura.io/v3/${process.env.INFURA_API_KEY}`,
-            accounts,
-            chainId: 42,
-            live: true,
-            saveDeployments: true,
-            tags: ["staging"],
+            url: "https://kovan.infura.io/v3/938ec750ced64edda8fc17c9e135d0f6",
+            accounts: [
+                `b374d026f9d1f59232abaaf6836d281d3971315a130dbe15e58ba957632433bf`,
+            ],
+        },
+    },
+    etherscan: {
+        apiKey: {
+            kovan: 'I6A3KDZGT3HI64W9RMRE2V12QP3U8EA74Z',
         },
     },
     mocha: {
@@ -48,7 +57,7 @@ module.exports = {
     solidity: {
         compilers: [
             {
-                version: "0.6.12",
+                version: "0.8.0",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -58,23 +67,21 @@ module.exports = {
             },
             {
                 version: "0.8.4",
-            },
-            {
-                version: "0.8.6",
-            },
-            {
-                version: "0.8.7",
-            },
-            {
-                version: "0.8.9",
-            },
-            {
-                version: "0.8.10",
-            },
-            {
-                version: "0.7.6",
-            },
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
+            }
         ]
-    }
+    },
+    contractSizer: {
+        alphaSort: false,
+        disambiguatePaths: false,
+        runOnCompile: true,
+        strict: true
+    },
+
 };
 
