@@ -39,15 +39,21 @@ module.exports = {
             tags: ["local"],
         },
         kovan: {
-            url: "https://kovan.infura.io/v3/938ec750ced64edda8fc17c9e135d0f6",
+            url: "https://kovan.infura.io/v3/5f9d4324d0fa49f29a82de8c33b91d1a",
             accounts: [
                 `b374d026f9d1f59232abaaf6836d281d3971315a130dbe15e58ba957632433bf`,
             ],
         },
+        goerli:{
+            url: "https://goerli.infura.io/v3/5f9d4324d0fa49f29a82de8c33b91d1a",
+            accounts: [
+                `b374d026f9d1f59232abaaf6836d281d3971315a130dbe15e58ba957632433bf`,
+            ],
+        }
     },
     etherscan: {
         apiKey: {
-            kovan: 'I6A3KDZGT3HI64W9RMRE2V12QP3U8EA74Z',
+            kovan: 'DKBKR5ACH4PTIHHZBFEGE2QSUT29I8HZ4D',
         },
     },
     mocha: {
@@ -55,7 +61,15 @@ module.exports = {
         bail: true,
     },
     solidity: {
-        compilers: [
+        compilers: [{
+            version: "0.6.12",
+            settings: {
+                optimizer: {
+                    enabled: true,
+                    runs: 200,
+                },
+            },
+        },
             {
                 version: "0.8.0",
                 settings: {

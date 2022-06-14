@@ -611,6 +611,13 @@ contract Sorbettiere is Ownable {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "Sorbettiere: you cant eat that much popsicles");
+
+        //是否需要加一个判断，这个是运营问题
+        if(_amount==0){
+            uint256 iceTokenBalance = ice.balanceOf(address(this));
+            require(iceTokenBalance>0,"not have enough reward token!");
+        }
+
         updatePool(_pid);
         uint256 pending =
             user.amount * pool.accIcePerShare / 1e12 - user.rewardDebt + user.remainingIceTokenReward;
