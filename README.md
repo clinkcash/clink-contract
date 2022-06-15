@@ -45,6 +45,7 @@ weth in tokenvault: 0x146cCE28E076a43c02065B0695F27470aCb5715E
 tokenvault :0xcb6e3bb46db170f8b9b3d026b19b4ff638577639
 tokens:
 clink : 0xCb8A8F4721b9b8e4487d88a838BcD31b08E466c0
+ftn   : 0x5a06e2Ab09A40B5D31f2AB7818652c1d1b50F0D0
 
 weth : 0xaD0D6B4da4D3150cd947b1Fc7b33567ba6c593bA
 wbtc : 0xA783432Cb869AF5979357209f9e49a17e395cDcc
@@ -72,6 +73,26 @@ weth-oracle:0x531110484aF39BEE9b6Ace07dF5be0f41268DEA5
 
 exchange url:
 csushi <-> clk : https://app.uniswap.org/#/swap?chain=kovan
+
+lp pool reward contract:
+sorbettiere: 0xF2E5E434bC203C58BAbBdAf7fE4e499d2aEb8760
+
+uni-v2 lp:
+0x2F84EFc05CAB2653a5f0a261EdeCb0A5133B6031(clink-ftn)
+0xdD612965659fE530869f9E224286D232334b4bd3（clink-usdt)
+0xb40846A9f674a17a7F8e6AA84C8F25a24AeE9D9e(clink-weth)
+0xA2D2541d6EE6aFc2eB2BEE81c01025fecFc029CA（ftn-weth)
+
+used indeed:
+btc:0xA783432Cb869AF5979357209f9e49a17e395cDcc
+btc-core:0xcf397a162b6930403e60334a29c93b1abf70eb0b
+ftn:0x5a06e2Ab09A40B5D31f2AB7818652c1d1b50F0D0
+ftn-core : 0x8fcBaC0B8A38d3dC3fC691eb99086326e59b5484
+usdt:0xC7C9665340cE2f3393A358184ba734b32E27cE73
+usdt-core:0xe8522996C56BD5Fdb31ee558397C8F537e0Bf5D3
+weth:0xaD0D6B4da4D3150cd947b1Fc7b33567ba6c593bA
+weth-core:0x70EAbEDA3c96d26Ea34a0c871C69130A02972d53
+
 
 how to get wbtc?
 can mint wbtc on the opensource mock contract in kovan scan
