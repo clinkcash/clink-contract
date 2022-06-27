@@ -25,11 +25,12 @@ async function main() {
   this.clink = await this.Clink.attach('0x23B1E638F43B96C7c9CEafd70A92A91F347BA6Dc')
 
   this.TokenVault = await ethers.getContractFactory("TokenVault");
-  this.tokenVault = await this.TokenVault.deploy(WETHMOCK);
-  await this.tokenVault.deployed();
+  // this.tokenVault = await this.TokenVault.deploy(WETHMOCK);
+  // await this.tokenVault.deployed();
+  this.tokenVault = await this.TokenVault.attach("0x77D194fA029b7B415241dedeffCBb19e8b012570")
 
   this.Mix = await ethers.getContractFactory("Mix");
-  // this.masterContract = await this.Mix.attach('0xf99a76f00d73ff1f3c135048250046b462ca75f7')
+  // this.masterContract = await this.Mix.attach('0x77AB615810B1Bd0adc7d8f0Eb80aD9e0c222af4d')
   this.masterContract = await this.Mix.deploy(this.tokenVault.address, this.clink.address);
   await this.masterContract.deployed();
 
