@@ -26,7 +26,7 @@ contract MasterContractManager is Ownable, Factory {
     // solhint-disable-next-line var-name-mixedcase
     uint256 private immutable DOMAIN_SEPARATOR_CHAIN_ID;
 
-    constructor() public {
+    constructor() {
         uint256 chainId;
         assembly {
             chainId := chainid()

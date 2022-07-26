@@ -87,7 +87,7 @@ contract TokenVault is MasterContractManager {
     // *** CONSTRUCTOR *** //
     // ******************* //
 
-    constructor(IERC20 wethToken_) public {
+    constructor(IERC20 wethToken_) {
         wethToken = wethToken_;
     }
 

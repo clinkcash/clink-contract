@@ -81,7 +81,7 @@ contract Core is Ownable, IInitialization {
     uint256 private constant DISTRIBUTION_PRECISION = 100;
 
     /// @notice The constructor is only used for the initial master contract. Subsequent clones are initialised via `init`.
-    constructor(ITokenVault tokenVault_, IERC20 clink_) public {
+    constructor(ITokenVault tokenVault_, IERC20 clink_) {
         tokenVault = tokenVault_;
         clink = clink_;
         masterContract = this;

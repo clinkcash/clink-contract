@@ -47,7 +47,7 @@ contract SimpleSwapperMock is ISwapperGeneric {
 
         (uint256 amountFrom,) = TOKENVAULT.withdraw(IERC20(address(from)), address(this), address(this), 0, shareFrom);
 
-        (bool updated,uint256 rate) = oracle.get(core.oracleData());
+        (,uint256 rate) = oracle.get(core.oracleData());
         uint256 toAmount;
         if (address(from) == address(clink)) {
             toAmount = amountFrom * rate / EXCHANGE_RATE_PRECISION;
@@ -68,7 +68,7 @@ contract SimpleSwapperMock is ISwapperGeneric {
         address,
         uint256,
         uint256
-    ) public override returns (uint256 shareUsed, uint256 shareReturned) {
+    ) public pure override returns (uint256 shareUsed, uint256 shareReturned) {
         return (0, 0);
     }
 }
