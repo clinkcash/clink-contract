@@ -3,8 +3,8 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "./interfaces/IAggregatorV3Interface.sol";
-import "./interfaces/IPriceHelper.sol";
+import "../interfaces/IAggregatorV3Interface.sol";
+import "../interfaces/IPriceHelper.sol";
 
 /// @title NFT USD Price helper
 /// @notice The floor price of the NFT collection is fetched using a chainlink oracle, while some other more valuable traits
@@ -30,12 +30,12 @@ contract PriceHelper is AccessControl, IPriceHelper {
     mapping(address => bool) public useFallbackOracle;
 
     //price for batch nft
-    mapping(address => mapping(bytes32 => uint256)) public override nftTypeValueETH;
+    mapping(address => mapping(bytes32 => uint256)) public nftTypeValueETH;
     //price for each nft
-    mapping(address => mapping(uint256 => uint256)) public override nftValueETH;
+    mapping(address => mapping(uint256 => uint256)) public nftValueETH;
     //bytes32(0) is floor
     // type for each nft
-    mapping(address => mapping(uint256 => bytes32)) public override nftTypes;
+    mapping(address => mapping(uint256 => bytes32)) public nftTypes;
 
     /// @dev Checks if the provided NFT index is valid
     /// @param nftIndex The index to check

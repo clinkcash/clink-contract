@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-import "./interfaces/IAggregatorV3Interface.sol";
 import "./interfaces/IPriceHelper.sol";
 import "../interfaces/ITokenVault.sol";
-import "hardhat/console.sol";
+import "../interfaces/IInitialization.sol";
 
 /// @title NFT lending vault
 /// @notice This contracts allows users to borrow PUSD using NFTs as collateral.
@@ -18,7 +16,7 @@ import "hardhat/console.sol";
 /// can have an higher price set by the DAO. Users can also increase the price (and thus the borrow limit) of their
 /// NFT by submitting a governance proposal. If the proposal is approved the user can lock a percentage of the new price
 /// worth of JPEG to make it effective
-contract NFTVault is AccessControl, ReentrancyGuard {
+contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.UintSet;
 
@@ -29,6 +27,7 @@ contract NFTVault is AccessControl, ReentrancyGuard {
     event Liquidated(address indexed liquidator, address indexed owner, uint256 indexed index, bool insured);
     event Repurchased(address indexed owner, uint256 indexed index);
     event InsuranceExpired(address indexed owner, uint256 indexed index);
+    event LogFeeTo(address indexed newFeeTo);
 
     enum BorrowType {
         NOT_CONFIRMED,
@@ -58,16 +57,17 @@ contract NFTVault is AccessControl, ReentrancyGuard {
         Rate insurancePurchaseRate;
         Rate insuranceLiquidationPenaltyRate;
         uint256 insuranceRepurchaseTimeLimit;
-        uint256 borrowAmountCap; // todo to delete ?
     }
 
-    bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
-    bytes32 public constant LIQUIDATOR_ROLE = keccak256("LIQUIDATOR_ROLE");
+    IERC20 public immutable clink;
+    ITokenVault public immutable tokenVault;
+    NFTVault public immutable masterContract;
+
+    // MasterContract variables
+    address public feeTo;
 
     IERC721 public nftContract;
     IPriceHelper public priceHelper;
-    IERC20 public clink;
-    ITokenVault public tokenVault;
 
     /// @notice Total outstanding debt
     uint256 public totalDebtAmount;
@@ -92,21 +92,21 @@ contract NFTVault is AccessControl, ReentrancyGuard {
         _;
     }
 
-    /// @param _nftContract The NFT contrat address. It could also be the address of an helper contract
-    /// if the target NFT isn't an ERC721 (CryptoPunks as an example)
-    /// Floor NFT shouldn't be initialized this way
-    /// @param _settings Initial settings used by the contract
+    constructor(IERC20 _clink, ITokenVault _tokenVault) {
+        clink = _clink;
+        tokenVault = _tokenVault;
+        masterContract = this;
+    }
 
-    constructor(
-        IERC20 _clink,
-        ITokenVault _tokenVault,
-        IERC721 _nftContract,
-        IPriceHelper _priceHelper,
-        VaultSettings memory _settings
-    ) {
-        _setupRole(DAO_ROLE, msg.sender);
-        _setRoleAdmin(LIQUIDATOR_ROLE, DAO_ROLE);
-        _setRoleAdmin(DAO_ROLE, DAO_ROLE);
+    /// @notice Serves as the constructor for clones, as clones can't have a regular constructor
+    /// @dev `data` is abi encoded in the format
+    function init(bytes calldata data) public payable override {
+        require(address(nftContract) == address(0), "NFTVault: already initialized");
+
+        (VaultSettings memory _settings, IERC721 _nftContract, IPriceHelper _priceHelper) = abi.decode(
+            data,
+            (VaultSettings, IERC721, IPriceHelper)
+        );
 
         _validateRate(_settings.debtInterestApr);
         _validateRate(_settings.creditLimitRate);
@@ -119,9 +119,8 @@ contract NFTVault is AccessControl, ReentrancyGuard {
 
         nftContract = _nftContract;
         priceHelper = _priceHelper;
-        clink = _clink;
         settings = _settings;
-        tokenVault = _tokenVault;
+        require(address(nftContract) != address(0), "NFTVault: bad pair");
     }
 
     /// @dev The {accrue} function updates the contract's state by calculating
@@ -133,71 +132,6 @@ contract NFTVault is AccessControl, ReentrancyGuard {
 
         totalDebtAmount += additionalInterest;
         totalFeeCollected += additionalInterest;
-    }
-
-    /// @notice Allows the DAO to change the total debt cap
-    /// @param _borrowAmountCap New total debt cap
-    function setBorrowAmountCap(uint256 _borrowAmountCap) external onlyRole(DAO_ROLE) {
-        settings.borrowAmountCap = _borrowAmountCap;
-    }
-
-    /// @notice Allows the DAO to change the interest APR on borrows
-    /// @param _debtInterestApr The new interest rate
-    function setDebtInterestApr(Rate calldata _debtInterestApr) external onlyRole(DAO_ROLE) {
-        _validateRate(_debtInterestApr);
-
-        accrue();
-
-        settings.debtInterestApr = _debtInterestApr;
-    }
-
-    /// @notice Allows the DAO to change the max debt to collateral rate for a position
-    /// @param _creditLimitRate The new rate
-    function setCreditLimitRate(Rate calldata _creditLimitRate) external onlyRole(DAO_ROLE) {
-        _validateRate(_creditLimitRate);
-        require(_greaterThan(settings.liquidationLimitRate, _creditLimitRate), "invalid_credit_limit");
-
-        settings.creditLimitRate = _creditLimitRate;
-    }
-
-    /// @notice Allows the DAO to change the minimum debt to collateral rate for a position to be market as liquidatable
-    /// @param _liquidationLimitRate The new rate
-    function setLiquidationLimitRate(Rate calldata _liquidationLimitRate) external onlyRole(DAO_ROLE) {
-        _validateRate(_liquidationLimitRate);
-        require(_greaterThan(_liquidationLimitRate, settings.creditLimitRate), "invalid_liquidation_limit");
-
-        settings.liquidationLimitRate = _liquidationLimitRate;
-    }
-
-    /// @notice Allows the DAO to change the amount of time insurance remains valid after liquidation
-    /// @param _newLimit New time limit
-    function setInsuranceRepurchaseTimeLimit(uint256 _newLimit) external onlyRole(DAO_ROLE) {
-        require(_newLimit != 0, "invalid_limit");
-        settings.insuranceRepurchaseTimeLimit = _newLimit;
-    }
-
-    /// @notice Allows the DAO to change the static borrow fee
-    /// @param _organizationFeeRate The new fee rate
-    function setOrganizationFeeRate(Rate calldata _organizationFeeRate) external onlyRole(DAO_ROLE) {
-        _validateRate(_organizationFeeRate);
-        settings.organizationFeeRate = _organizationFeeRate;
-    }
-
-    /// @notice Allows the DAO to change the cost of insurance
-    /// @param _insurancePurchaseRate The new insurance fee rate
-    function setInsurancePurchaseRate(Rate calldata _insurancePurchaseRate) external onlyRole(DAO_ROLE) {
-        _validateRate(_insurancePurchaseRate);
-        settings.insurancePurchaseRate = _insurancePurchaseRate;
-    }
-
-    /// @notice Allows the DAO to change the repurchase penalty rate in case of liquidation of an insured NFT
-    /// @param _insuranceLiquidationPenaltyRate The new rate
-    function setInsuranceLiquidationPenaltyRate(Rate calldata _insuranceLiquidationPenaltyRate)
-        external
-        onlyRole(DAO_ROLE)
-    {
-        _validateRate(_insuranceLiquidationPenaltyRate);
-        settings.insuranceLiquidationPenaltyRate = _insuranceLiquidationPenaltyRate;
     }
 
     /// @dev Checks if `r1` is greater than `r2`.
@@ -213,7 +147,6 @@ contract NFTVault is AccessControl, ReentrancyGuard {
 
     struct NFTInfo {
         uint256 index;
-        bytes32 nftType;
         address owner;
         uint256 nftValueUSD;
     }
@@ -222,13 +155,7 @@ contract NFTVault is AccessControl, ReentrancyGuard {
     /// @param _nftIndex The NFT index
     /// @return nftInfo The data relative to the NFT
     function getNFTInfo(uint256 _nftIndex) external view returns (NFTInfo memory nftInfo) {
-        nftInfo = NFTInfo(
-            _nftIndex,
-            priceHelper.nftTypes(address(nftContract), _nftIndex),
-            nftContract.ownerOf(_nftIndex),
-            // _getNFTValueETH(_nftIndex),
-            _getNFTValueUSD(_nftIndex)
-        );
+        nftInfo = NFTInfo(_nftIndex, nftContract.ownerOf(_nftIndex), _getNFTValueUSD(_nftIndex));
     }
 
     /// @dev Returns the credit limit of an NFT
@@ -328,7 +255,6 @@ contract NFTVault is AccessControl, ReentrancyGuard {
     struct PositionPreview {
         address owner;
         uint256 nftIndex;
-        bytes32 nftType;
         uint256 nftValueUSD;
         VaultSettings vaultSettings;
         uint256 creditLimit;
@@ -368,7 +294,6 @@ contract NFTVault is AccessControl, ReentrancyGuard {
             preview = PositionPreview({
                 owner: posOwner, //the owner of the position, `address(0)` if the position doesn't exists
                 nftIndex: _nftIndex, //the NFT used as collateral for the position
-                nftType: priceHelper.nftTypes(address(nftContract), _nftIndex), //the type of the NFT
                 nftValueUSD: _getNFTValueUSD(_nftIndex), //the value in USD of the NFT
                 vaultSettings: settings, //the current vault's settings
                 creditLimit: _getCreditLimit(_nftIndex), //the NFT's credit limit
@@ -398,8 +323,6 @@ contract NFTVault is AccessControl, ReentrancyGuard {
 
         require(msg.sender == positionOwner[_nftIndex] || address(0) == positionOwner[_nftIndex], "unauthorized");
         require(_amount != 0, "invalid_amount");
-        console.log("borrowAmountCap: %d",settings.borrowAmountCap);
-        require(totalDebtAmount + _amount <= settings.borrowAmountCap, "debt_cap");
 
         Position storage position = positions[_nftIndex];
         require(position.liquidatedAt == 0, "liquidated");
@@ -524,7 +447,7 @@ contract NFTVault is AccessControl, ReentrancyGuard {
         emit PositionClosed(msg.sender, _nftIndex);
     }
 
-    /// @notice Allows members of the `LIQUIDATOR_ROLE` to liquidate a position. Positions can only be liquidated
+    /// @notice Positions can only be liquidated
     /// once their debt amount exceeds the minimum liquidation debt to collateral value rate.
     /// In order to liquidate a position, the liquidator needs to repay the user's outstanding debt.
     /// If the position is not insured, it's closed immediately and the collateral is sent to `_recipient`.
@@ -628,11 +551,20 @@ contract NFTVault is AccessControl, ReentrancyGuard {
         emit InsuranceExpired(owner, _nftIndex);
     }
 
-    /// @notice Allows the DAO to collect interest and fees before they are repaid
-    function collect() external nonReentrant onlyRole(DAO_ROLE) {
+    function collect() external nonReentrant {
+        address _feeTo = masterContract.feeTo();
+        require(_feeTo != address(0), "addr err");
         accrue();
-        _transferClink(address(this), msg.sender, totalFeeCollected);
+        _transferClink(address(this), _feeTo, totalFeeCollected);
         totalFeeCollected = 0;
+    }
+
+    /// @notice Sets the beneficiary of interest accrued.
+    /// MasterContract Only Admin function.
+    /// @param newFeeTo The address of the receiver.
+    function setFeeTo(address newFeeTo) public onlyOwner {
+        feeTo = newFeeTo;
+        emit LogFeeTo(newFeeTo);
     }
 
     function _transferClink(
