@@ -7,7 +7,6 @@ library FixedPoint128 {
     uint256 internal constant Q128 = 0x100000000000000000000000000000000;
 }
 
-
 /// @title FixedPoint96
 /// @notice A library for handling binary fixed point numbers, see https://en.wikipedia.org/wiki/Q_(number_format)
 /// @dev Used in SqrtPriceMath.sol
@@ -16,6 +15,47 @@ library FixedPoint96 {
     uint256 internal constant Q96 = 0x1000000000000000000000000;
 }
 
+library PoolAddress {
+    bytes32 internal constant POOL_INIT_CODE_HASH = 0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
+
+    /// @notice The identifying key of the pool
+    struct PoolKey {
+        address token0;
+        address token1;
+        uint24 fee;
+    }
+
+    /// @notice Returns PoolKey: the ordered tokens with the matched fee levels
+    /// @param tokenA The first token of a pool, unsorted
+    /// @param tokenB The second token of a pool, unsorted
+    /// @param fee The fee level of the pool
+    /// @return Poolkey The pool details with ordered token0 and token1 assignments
+    function getPoolKey(
+        address tokenA,
+        address tokenB,
+        uint24 fee
+    ) internal pure returns (PoolKey memory) {
+        if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
+        return PoolKey({token0: tokenA, token1: tokenB, fee: fee});
+    }
+
+    /// @notice Deterministically computes the pool address given the factory and PoolKey
+    /// @param factory The Uniswap V3 factory contract address
+    /// @param key The PoolKey
+    /// @return pool The contract address of the V3 pool
+    function computeAddress(address factory, PoolKey memory key) internal pure returns (address pool) {
+        require(key.token0 < key.token1);
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                hex"ff",
+                factory,
+                keccak256(abi.encode(key.token0, key.token1, key.fee)),
+                POOL_INIT_CODE_HASH
+            )
+        );
+        pool = address(uint160(uint256(hash)));
+    }
+}
 
 /// @title Contains 512-bit math functions
 /// @notice Facilitates multiplication and division that can have overflow of an intermediate value without any loss of precision
@@ -139,7 +179,6 @@ library FullMath {
     }
 }
 
-
 /// @title Math library for computing sqrt prices from ticks and vice versa
 /// @notice Computes sqrt price for ticks of size 1.0001, i.e. sqrt(1.0001^tick) as fixed point Q64.96 numbers. Supports
 /// prices between 2**-128 and 2**128
@@ -161,7 +200,7 @@ library TickMath {
     /// at the given tick
     function getSqrtRatioAtTick(int24 tick) internal pure returns (uint160 sqrtPriceX96) {
         uint256 absTick = tick < 0 ? uint256(-int256(tick)) : uint256(int256(tick));
-        require(absTick <=887272, 'T');
+        require(absTick <= 887272, "T");
 
         uint256 ratio = absTick & 0x1 != 0 ? 0xfffcb933bd6fad37aa2d162d1a594001 : 0x100000000000000000000000000000000;
         if (absTick & 0x2 != 0) ratio = (ratio * 0xfff97272373d413259a46990580e213a) >> 128;
@@ -192,6 +231,7 @@ library TickMath {
         sqrtPriceX96 = uint160((ratio >> 32) + (ratio % (1 << 32) == 0 ? 0 : 1));
     }
 }
+
 /// @title Liquidity amount functions
 /// @notice Provides functions for computing liquidity amounts from token amounts and prices
 library LiquidityAmounts {
@@ -362,14 +402,10 @@ interface INonfungiblePositionManager {
         );
 
     function ownerOf(uint256 tokenId) external view returns (address owner);
-
 }
 
-
-interface IUniswapV3Pool 
-{
-
- /// @notice The fee growth as a Q128.128 fees of token0 collected per unit of liquidity for the entire life of the pool
+interface IUniswapV3Pool {
+    /// @notice The fee growth as a Q128.128 fees of token0 collected per unit of liquidity for the entire life of the pool
     /// @dev This value can overflow the uint256
     function feeGrowthGlobal0X128() external view returns (uint256);
 
@@ -391,7 +427,7 @@ interface IUniswapV3Pool
             bool initialized
         );
 
-        function slot0()
+    function slot0()
         external
         view
         returns (
@@ -404,7 +440,6 @@ interface IUniswapV3Pool
             bool unlocked
         );
 }
-
 
 /// @title Returns information about the token value held in a Uniswap V3 NFT
 library PositionValue {
@@ -422,7 +457,7 @@ library PositionValue {
         uint160 sqrtRatioX96
     ) internal view returns (uint256 amount0, uint256 amount1) {
         (uint256 amount0Principal, uint256 amount1Principal) = principal(positionManager, tokenId, sqrtRatioX96);
-        (uint256 amount0Fee, uint256 amount1Fee) = fees(pool,positionManager, tokenId);
+        (uint256 amount0Fee, uint256 amount1Fee) = fees(pool, positionManager, tokenId);
         return (amount0Principal + amount0Fee, amount1Principal + amount1Fee);
     }
 
@@ -467,11 +502,11 @@ library PositionValue {
     /// @param tokenId The tokenId of the token for which to get the total fees owed
     /// @return amount0 The amount of fees owed in token0
     /// @return amount1 The amount of fees owed in token1
-    function fees(address pool,INonfungiblePositionManager positionManager, uint256 tokenId)
-        internal
-        view
-        returns (uint256 amount0, uint256 amount1)
-    {
+    function fees(
+        address pool,
+        INonfungiblePositionManager positionManager,
+        uint256 tokenId
+    ) internal view returns (uint256 amount0, uint256 amount1) {
         (
             ,
             ,
@@ -488,7 +523,8 @@ library PositionValue {
         ) = positionManager.positions(tokenId);
 
         return
-            _fees(pool,
+            _fees(
+                pool,
                 FeeParams({
                     token0: token0,
                     token1: token1,
@@ -504,17 +540,12 @@ library PositionValue {
             );
     }
 
-    function _fees(address pool, FeeParams memory feeParams)
-        private
-        view
-        returns (uint256 amount0, uint256 amount1)
-    {
-        (uint256 poolFeeGrowthInside0LastX128, uint256 poolFeeGrowthInside1LastX128) =
-            _getFeeGrowthInside(
-                IUniswapV3Pool(pool),
-                feeParams.tickLower,
-                feeParams.tickUpper
-            );
+    function _fees(address pool, FeeParams memory feeParams) private view returns (uint256 amount0, uint256 amount1) {
+        (uint256 poolFeeGrowthInside0LastX128, uint256 poolFeeGrowthInside1LastX128) = _getFeeGrowthInside(
+            IUniswapV3Pool(pool),
+            feeParams.tickLower,
+            feeParams.tickUpper
+        );
 
         amount0 =
             FullMath.mulDiv(

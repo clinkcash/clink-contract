@@ -199,4 +199,8 @@ contract PriceHelper is AccessControl, IPriceHelper {
             return decimals > 18 ? uint256(answer) / 10**(decimals - 18) : uint256(answer) * 10**(18 - decimals);
         }
     }
+
+    function isOpen(address _nftContract, uint256 _nftIndex) public view override returns (bool) {
+        return true;
+    }
 }
