@@ -31,16 +31,13 @@ describe("nft", function () {
         await this.tokenVault.deployed();
         console.info(" tokenVault ", this.tokenVault.address)
 
-
-
-
         this.AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock");
         this.aggregator = await this.AggregatorV3Mock.deploy();
         await this.aggregator.deployed();
         console.info(" aggregator ", this.aggregator.address)
 
 
-        this.PriceHelper = await ethers.getContractFactory("PriceHelper")
+        this.PriceHelper = await ethers.getContractFactory("UniLPPriceHelper")
         this.priceHelper = await this.PriceHelper.deploy(this.aggregator.address)
         await this.priceHelper.deployed();
         console.info(" priceHelper ", this.priceHelper.address)
@@ -61,7 +58,6 @@ describe("nft", function () {
 
 
     it("brrow", async function () {
-
         await this.priceHelper.addNFTCollection(this.nft.address, this.aggregator.address, [])
         await this.clink.mint(this.alice.address, "100000000000000000000000");
         await this.clink.approve(this.tokenVault.address, "0xffffffffffffffffffffffffffffffffffffffffff");

@@ -1,8 +1,19 @@
 # Develop
 
-### goerli test address 
+## goerli test address 
 
-###### mix:
+#### nft:
+```
+ lpnftManager 0xC36442b4a4522E871399CD717aBDD847Ab11FE88
+ clink  0x23B1E638F43B96C7c9CEafd70A92A91F347BA6Dc
+ tokenVault  0xFc03AA054eE9d7fB61019e95907ee1feb02b0Ac6
+ aggregator  0x23cc8cd17977d45e3043979912d8236ec9cf850a
+ priceHelper  0x39C810D755864FBbF6f4984760EC7038A216423F
+ masterContract  0x50d3f033252e9832de0adc3609c663b90e06dd4a
+ nFTVault  0xc4Df77E2cceB1eF0ed0224Cc68359dF984D4C6e8
+```
+
+#### mix:
 ```
 clink: 0x23B1E638F43B96C7c9CEafd70A92A91F347BA6Dc
 tokenVault: 0xFc03AA054eE9d7fB61019e95907ee1feb02b0Ac6
@@ -10,7 +21,7 @@ masterContract : 0x7f5957a4d30b4CC2CF0a160e73f36Ce7cB303f0b
 Mix : 0xE0aCCAfF6D13d5858C0Ffa857a0eCcb01D4593D3
 
 ```
-##### core:
+#### core:
 ```
 tokenvault :0x77D194fA029b7B415241dedeffCBb19e8b012570
 tokens:

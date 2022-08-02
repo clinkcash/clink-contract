@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.4;
+pragma solidity ^0.8.4;
 
 import "../interfaces/ISwapperGeneric.sol";
 import "../interfaces/IOracle.sol";
-import "../interfaces/ITokenVault.sol";
+import "../../interfaces/ITokenVault.sol";
 
 interface ICore {
     function oracleData() external returns (bytes calldata data);

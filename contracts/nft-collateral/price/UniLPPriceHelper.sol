@@ -5,14 +5,12 @@ import "../libraries/PositionValue.sol";
 import "../interfaces/IPriceHelper.sol";
 import "../interfaces/IAggregatorV3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-
 /// @title NFT USD Price helper
 contract UniLPPriceHelper is Ownable, IPriceHelper {
     mapping(address => IAggregatorV3Interface) public tokenAggregator;
     mapping(address => mapping(address => bool)) public whiteListPair;
 
     INonfungiblePositionManager public nft;
-    address public factory;
 
     /// @dev Checks if the provided NFT index is valid
     /// @param nftIndex The index to check
@@ -23,9 +21,8 @@ contract UniLPPriceHelper is Ownable, IPriceHelper {
         _;
     }
 
-    constructor(INonfungiblePositionManager _nft, address _factory) {
+    constructor(INonfungiblePositionManager _nft) {
         nft = _nft;
-        factory = _factory;
     }
 
     /// @dev Returns the value in USD of the NFT at index `_nftIndex`
@@ -42,16 +39,13 @@ contract UniLPPriceHelper is Ownable, IPriceHelper {
         if (!whiteListPair[token0][token1]) {
             return 0;
         }
-
         address poolAddr = PoolAddress.computeAddress(
-            factory,
+            nft.factory(),
             PoolAddress.PoolKey({token0: token0, token1: token1, fee: fee})
         );
-
         IUniswapV3Pool pool = IUniswapV3Pool(poolAddr);
-
         (uint160 sqrtRatioX96, , , , , , ) = pool.slot0();
-        (uint amount0, uint amount1) = PositionValue.total(address(pool), nft, _nftIndex, sqrtRatioX96);
+        (uint amount0, uint amount1) = PositionValue.total(poolAddr, nft, _nftIndex, sqrtRatioX96);
         return (amount0 * tokenPrice(tokenAggregator[token0]) + amount1 * tokenPrice(tokenAggregator[token1])) / 1e18;
     }
 
