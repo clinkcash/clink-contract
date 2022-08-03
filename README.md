@@ -22,6 +22,7 @@ test process:
 2. set lpnftManager Approve for nFTVault
 3. borrow
 
+uniswap: https://app.uniswap.org/#/pool?chain=goerli
 
 #### mix:
 ```
