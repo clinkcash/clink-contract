@@ -4,6 +4,11 @@
 
 #### nft:
 ```
+
+ pair: wbtc-weth
+  weth : 0x32Cd5AA21a015339fF39Cb9ac283DF43fF4B8955
+  wbtc : 0x5654C0B6DF8d31c95dc20533fC66296D8A093a89
+  
  lpnftManager 0xC36442b4a4522E871399CD717aBDD847Ab11FE88
  clink  0x23B1E638F43B96C7c9CEafd70A92A91F347BA6Dc
  tokenVault  0xFc03AA054eE9d7fB61019e95907ee1feb02b0Ac6
@@ -12,6 +17,11 @@
  masterContract  0x50d3f033252e9832de0adc3609c663b90e06dd4a
  nFTVault  0xc4Df77E2cceB1eF0ed0224Cc68359dF984D4C6e8
 ```
+test process:
+1. add LP pair: wbtc-weth
+2. set lpnftManager Approve for nFTVault
+3. borrow
+
 
 #### mix:
 ```
