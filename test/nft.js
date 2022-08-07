@@ -31,16 +31,23 @@ describe("nft", function () {
         await this.tokenVault.deployed();
         console.info(" tokenVault ", this.tokenVault.address)
 
-        this.AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock");
-        this.aggregator = await this.AggregatorV3Mock.deploy();
-        await this.aggregator.deployed();
-        console.info(" aggregator ", this.aggregator.address)
+        this.AggregatorV3Mock = await ethers.getContractFactory("AggregatorMock");
 
+    this.ethAggregator = await this.AggregatorMock.deploy("2000000000");
+    await this.ethAggregator.deployed();
+    console.info(" ethAggregator ", this.ethAggregator.address)
 
-        this.PriceHelper = await ethers.getContractFactory("UniLPPriceHelper")
-        this.priceHelper = await this.PriceHelper.deploy(this.aggregator.address)
-        await this.priceHelper.deployed();
-        console.info(" priceHelper ", this.priceHelper.address)
+    this.btcAggregator = await this.AggregatorMock.deploy("20000000000");
+    await this.btcAggregator.deployed();
+    console.info(" btcAggregator ", this.btcAggregator.address)
+
+    this.UniLPPriceHelper = await ethers.getContractFactory("UniLPPriceHelper")
+    this.priceHelper = await this.UniLPPriceHelper.deploy(nft)
+    await this.priceHelper.deployed();
+    console.info(" priceHelper ", this.priceHelper.address)
+
+    await (await this.priceHelper.addTokenAggregator(wbtc, this.btcAggregator.address)).wait()
+    await (await this.priceHelper.addTokenAggregator(weth, this.ethAggregator.address)).wait()
 
 
 

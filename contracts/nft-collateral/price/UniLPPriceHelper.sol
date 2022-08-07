@@ -5,8 +5,11 @@ import "../libraries/PositionValue.sol";
 import "../interfaces/IPriceHelper.sol";
 import "../interfaces/IAggregatorV3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+
 /// @title NFT USD Price helper
 contract UniLPPriceHelper is Ownable, IPriceHelper {
+    event WhiteList(address indexed token0, address indexed token1);
+
     mapping(address => IAggregatorV3Interface) public tokenAggregator;
     mapping(address => mapping(address => bool)) public whiteListPair;
 
@@ -39,6 +42,11 @@ contract UniLPPriceHelper is Ownable, IPriceHelper {
         if (!whiteListPair[token0][token1]) {
             return 0;
         }
+        require(
+            address(tokenAggregator[token0]) != address(0) && address(tokenAggregator[token1]) != address(0),
+            "aggregator error"
+        );
+
         address poolAddr = PoolAddress.computeAddress(
             nft.factory(),
             PoolAddress.PoolKey({token0: token0, token1: token1, fee: fee})
@@ -70,6 +78,8 @@ contract UniLPPriceHelper is Ownable, IPriceHelper {
         if (token0 > token1) {
             (token0, token1) = (token1, token0);
         }
+        emit WhiteList(token0, token1);
+
         require(!whiteListPair[token0][token1], "already whitelisted");
         whiteListPair[token0][token1] = true;
     }

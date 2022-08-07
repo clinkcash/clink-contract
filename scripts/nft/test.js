@@ -14,14 +14,10 @@ async function main() {
     const weth = '0x32Cd5AA21a015339fF39Cb9ac283DF43fF4B8955'
     const wbtc = '0x5654C0B6DF8d31c95dc20533fC66296D8A093a89'
 
-    const uniPriceHelperAddr = '0x942A7C155CA3152F0d139F22Cde975F4a0805bA9'
-    const nFTVaultAddr = '0xc4Df77E2cceB1eF0ed0224Cc68359dF984D4C6e8'
+    this.NFT = await ethers.getContractFactory("NFTMock")
+    this.nft = await this.NFT.attach(nft)
+    console.info(" nft ", this.nft.address)
 
-
-    // this.NFT = await ethers.getContractFactory("NFTMock")
-    // this.nft = await this.NFT.attach("TEST", "TEST")
-    // await this.nft.deployed();
-    // console.info(" nft ", this.nft.address)
 
 
     this.Clink = await ethers.getContractFactory("Clink");
@@ -33,21 +29,58 @@ async function main() {
     this.tokenVault = this.TokenVault.attach(tokenVaultAddr);
     console.info(" tokenVault ", this.tokenVault.address)
 
-    // this.AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock");
-    // this.aggregator = await this.AggregatorV3Mock.deploy();
-    // await this.aggregator.deployed();
-    // console.info(" aggregator ", this.aggregator.address)
+    this.AggregatorV3Mock = await ethers.getContractFactory("AggregatorMock");
+
+    this.ethAggregator = await this.AggregatorMock.deploy("2000000000");
+    await this.ethAggregator.deployed();
+    console.info(" ethAggregator ", this.ethAggregator.address)
+
+    this.btcAggregator = await this.AggregatorMock.deploy("20000000000");
+    await this.btcAggregator.deployed();
+    console.info(" btcAggregator ", this.btcAggregator.address)
 
     this.UniLPPriceHelper = await ethers.getContractFactory("UniLPPriceHelper")
-    this.priceHelper = await this.UniLPPriceHelper.attach(uniPriceHelperAddr)
+    this.priceHelper = await this.UniLPPriceHelper.deploy(nft)
+    await this.priceHelper.deployed();
     console.info(" priceHelper ", this.priceHelper.address)
 
+    await (await this.priceHelper.addTokenAggregator(wbtc, this.btcAggregator.address)).wait()
+    await (await this.priceHelper.addTokenAggregator(weth, this.ethAggregator.address)).wait()
+
+    await (await this.priceHelper.addWhiteList(weth, wbtc)).wait()
+
+    
     this.NFTVault = await ethers.getContractFactory("NFTVault")
-    this.nFTVault = await this.NFTVault.attach(nFTVaultAddr)
+    this.masterContract = await this.NFTVault.deploy(this.clink.address, this.tokenVault.address)
+    await this.masterContract.deployed();
+    console.info(" masterContract ", this.masterContract.address)
+
+
+    const vaultSettings = [[100, 10000000000000], [40, 100], [50, 100], [10, 100], [1, 100], [10, 100], 86400]
+
+
+    const initData = ethers.utils.defaultAbiCoder.encode(
+        ["uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "address", "address"],
+        [
+            100, 10000000000000, 40, 100, 50, 100, 10, 100, 1, 100, 10, 100, 86400,
+            nft,
+            this.priceHelper.address
+        ]
+    );
+    // send deploy tx
+    const tx = await (
+        await this.tokenVault.deploy(this.masterContract.address, initData, true)
+    ).wait();
+
+    // get core address from tx event
+    const deployEvent = tx?.events?.[0];
+    const coreAddress = deployEvent?.args?.cloneAddress;
+    this.nFTVault = this.NFTVault.attach(coreAddress);
     console.info(" nFTVault ", this.nFTVault.address)
 
-    // const priceUsd = await this.priceHelper.getNFTValueUSD(nft,29820)
-    // console.info(priceUsd)
+
+    const priceUsd = await this.priceHelper.getNFTValueUSD(nft,29913)
+    console.info(priceUsd)
 
     // //init
     // await (await this.tokenVault.whitelistMasterContract(this.nFTVault.address, true)).wait();
@@ -57,8 +90,8 @@ async function main() {
     // await (await this.tokenVault.deposit(this.clink.address, this.alice.address, this.nFTVault.address, "100000000000000000000000", "0")).wait()
     // await (await this.tokenVault.setMasterContractApproval(this.alice.address, this.nFTVault.address, true, 0, "0x0000000000000000000000000000000000000000000000000000000000000000", "0x0000000000000000000000000000000000000000000000000000000000000000")).wait()
     // await (await this.nft.mint(this.alice.address)).wait()
-    // await (await this.nft.setApprovalForAll(this.nFTVault.address, true)).wait()
-    await (await this.nFTVault.borrow(29820, "1000000000000000000000", false)).wait()
+    await (await this.nft.setApprovalForAll(this.nFTVault.address, true)).wait()
+    await (await this.nFTVault.borrow(29913, "1000000000000000000000", false)).wait()
 
     // console.info(await this.tokenVault.balanceOf(this.clink.address, this.alice.address))
 }

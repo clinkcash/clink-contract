@@ -259,6 +259,7 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
         VaultSettings vaultSettings;
         uint256 creditLimit;
         uint256 debtPrincipal;
+        uint256 debtPortion;
         uint256 debtInterest;
         uint256 liquidatedAt;
         BorrowType borrowType;
@@ -298,6 +299,7 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
                 vaultSettings: settings, //the current vault's settings
                 creditLimit: _getCreditLimit(_nftIndex), //the NFT's credit limit
                 debtPrincipal: debtPrincipal, //the debt principal for the position, `0` if the position doesn't exists
+                debtPortion: position.debtPortion,
                 debtInterest: debtAmount - debtPrincipal, //the interest of the position
                 borrowType: position.borrowType, //the insurance type of the position, `NOT_CONFIRMED` if it doesn't exist
                 liquidatable: liquidatedAt == 0 && debtAmount >= _getLiquidationLimit(_nftIndex), //if the position can be liquidated
