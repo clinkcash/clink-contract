@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
+import "@openzeppelin/contracts/utils/Multicall.sol";
 import "./interfaces/IPriceHelper.sol";
 import "../interfaces/ITokenVault.sol";
 import "../interfaces/IInitialization.sol";
@@ -16,7 +18,7 @@ import "../interfaces/IInitialization.sol";
 /// can have an higher price set by the DAO. Users can also increase the price (and thus the borrow limit) of their
 /// NFT by submitting a governance proposal. If the proposal is approved the user can lock a percentage of the new price
 /// worth of JPEG to make it effective
-contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
+contract NFTVault is Ownable, ReentrancyGuard, IInitialization, Multicall {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.UintSet;
 
@@ -74,7 +76,7 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
     /// @dev Last time debt was accrued. See {accrue} for more info
     uint256 public totalDebtAccruedAt;
     uint256 public totalFeeCollected;
-    uint256 internal totalDebtPortion;
+    uint256 public totalDebtPortion;
 
     VaultSettings public settings;
 
@@ -376,7 +378,7 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
             _openPosition(msg.sender, _nftIndex);
         }
 
-        _transferClink(address(this), msg.sender, _amount - feeAmount);
+        _withdrawClink(msg.sender, _amount - feeAmount);
 
         emit Borrowed(msg.sender, _nftIndex, _amount);
     }
@@ -405,7 +407,7 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
         _amount = _amount > debtAmount ? debtAmount : _amount;
 
         // burn all payment, the interest is sent to the DAO using the {collect} function
-        _transferClink(msg.sender, address(this), _amount);
+        _repayClink(msg.sender, _amount);
 
         uint256 paidPrincipal;
 
@@ -473,7 +475,7 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
         require(debtAmount >= _getLiquidationLimit(_nftIndex), "position_not_liquidatable");
 
         // burn all payment
-        _transferClink(msg.sender, address(this), debtAmount);
+        _repayClink(msg.sender, debtAmount);
 
         // update debt portion
         totalDebtPortion -= position.debtPortion;
@@ -517,7 +519,7 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
         delete positions[_nftIndex];
         positionIndexes.remove(_nftIndex);
 
-        _transferClink(msg.sender, position.liquidator, debtAmount + penalty);
+        clink.safeTransferFrom(msg.sender, position.liquidator, debtAmount + penalty);
 
         nftContract.safeTransferFrom(address(this), msg.sender, _nftIndex);
 
@@ -535,8 +537,8 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
         nonReentrant
     {
         Position memory position = positions[_nftIndex];
-        address owner = positionOwner[_nftIndex];
-        require(address(0) != owner, "no_position");
+        address _owner = positionOwner[_nftIndex];
+        require(address(0) != _owner, "no_position");
         require(position.liquidatedAt != 0, "not_liquidated");
         require(
             position.liquidatedAt + settings.insuranceRepurchaseTimeLimit < block.timestamp,
@@ -550,7 +552,7 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
 
         nftContract.transferFrom(address(this), _recipient, _nftIndex);
 
-        emit InsuranceExpired(owner, _nftIndex);
+        emit InsuranceExpired(_owner, _nftIndex);
     }
 
     function collect() external nonReentrant {
@@ -576,5 +578,29 @@ contract NFTVault is Ownable, ReentrancyGuard, IInitialization {
     ) internal {
         uint256 share = tokenVault.toShare(clink, amount, false);
         tokenVault.transfer(clink, from, to, share);
+    }
+
+    function _withdrawClink(address to, uint256 amount) internal {
+        tokenVault.withdraw(clink, address(this), to, amount, 0);
+    }
+
+    function _repayClink(address from, uint256 amount) internal {
+        clink.safeTransferFrom(from, address(this), amount);
+        if (clink.allowance(address(this), address(tokenVault)) < amount) {
+            clink.approve(address(tokenVault), type(uint).max);
+        }
+        tokenVault.deposit(clink, address(this), address(this), amount, 0);
+    }
+
+    function approveClick(
+        address owner_,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public {
+        IERC20Permit(address(clink)).permit(owner_, spender, value, deadline, v, r, s);
     }
 }
