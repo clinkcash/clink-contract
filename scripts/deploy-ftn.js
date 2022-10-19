@@ -7,7 +7,7 @@ async function main() {
     this.alice = this.signers[0];
 
     // We get the contract to deploy
-    const Ftn = await ethers.getContractFactory("Ftn");
+    const Ftn = await ethers.getContractFactory("Fontana");
     const ftn = await Ftn.deploy();
   
     await ftn.deployed();
@@ -17,7 +17,7 @@ async function main() {
     //Sorbettiere
     const Sorbettiere = await ethers.getContractFactory("Sorbettiere");
     
-    const ftnPerSecond = '10000000000000000000'//10*1e18.toString();
+    const ftnPerSecond = '100000000000000000'//10*1e18.toString();
     const startTime = Date.now() / 1000 | 0;
 
     console.log(" startTime is :", startTime);

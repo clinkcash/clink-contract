@@ -1,6 +1,6 @@
 const { network, ethers, waffle} = require("hardhat");
 
-const ftnAddress = '0x5a06e2Ab09A40B5D31f2AB7818652c1d1b50F0D0';
+const ftnAddress = '0x0ce4a807c963c09C63BCCd3f732591fe4629012f';
 
 async function main() {
     this.network = network;
