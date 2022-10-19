@@ -5,12 +5,12 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./interfaces/ITokenVault.sol";
+import "../interfaces/ITokenVault.sol";
 import "./interfaces/IERC20Burnable.sol";
 import "./interfaces/IOracle.sol";
 import "./interfaces/ISwapper.sol";
-import "./interfaces/IInitialization.sol";
-import "./libraries/AssetInfoLibrary.sol";
+import "../interfaces/IInitialization.sol";
+import "../libraries/AssetInfoLibrary.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 
@@ -81,7 +81,7 @@ contract Core is Ownable, IInitialization {
     uint256 private constant DISTRIBUTION_PRECISION = 100;
 
     /// @notice The constructor is only used for the initial master contract. Subsequent clones are initialised via `init`.
-    constructor(ITokenVault tokenVault_, IERC20 clink_) public {
+    constructor(ITokenVault tokenVault_, IERC20 clink_) {
         tokenVault = tokenVault_;
         clink = clink_;
         masterContract = this;

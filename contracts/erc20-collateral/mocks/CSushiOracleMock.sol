@@ -36,11 +36,11 @@ contract CSushiOracleMock is IOracle {
         (, rate) = peek(data);
     }
 
-    function name(bytes calldata) public view override returns (string memory) {
+    function name(bytes calldata) public pure override returns (string memory) {
         return "Test";
     }
 
-    function symbol(bytes calldata) public view override returns (string memory) {
+    function symbol(bytes calldata) public pure override returns (string memory) {
         return "TEST";
     }
 }

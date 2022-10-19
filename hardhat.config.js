@@ -39,15 +39,10 @@ module.exports = {
             tags: ["local"],
         },
         kovan: {
-            url: "https://kovan.infura.io/v3/938ec750ced64edda8fc17c9e135d0f6",
+            url: "https://kovan.infura.io/v3/yourkey",
             accounts: [
-                `b374d026f9d1f59232abaaf6836d281d3971315a130dbe15e58ba957632433bf`,
+                `the pri key`,
             ],
-        },
-    },
-    etherscan: {
-        apiKey: {
-            kovan: 'I6A3KDZGT3HI64W9RMRE2V12QP3U8EA74Z',
         },
     },
     mocha: {

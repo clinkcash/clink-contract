@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-import "../interfaces/IStrategy.sol";
+import "../../interfaces/IStrategy.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 
@@ -17,13 +17,13 @@ contract SimpleStrategyMock is IStrategy {
         _;
     }
 
-    constructor(address tokenVault_, IERC20 token_) public {
+    constructor(address tokenVault_, IERC20 token_) {
         tokenVault = tokenVault_;
         token = token_;
     }
 
     // Send the assets to the Strategy and call skim to invest them
-    function skim(uint256) external override onlyTokenVault {
+    function skim(uint256) external view override onlyTokenVault {
         // Leave the tokens on the contract
         return;
     }

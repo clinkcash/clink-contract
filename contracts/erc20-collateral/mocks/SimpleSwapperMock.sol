@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.4;
+pragma solidity ^0.8.4;
 
 import "../interfaces/ISwapperGeneric.sol";
 import "../interfaces/IOracle.sol";
-import "../interfaces/ITokenVault.sol";
+import "../../interfaces/ITokenVault.sol";
 
 interface ICore {
     function oracleData() external returns (bytes calldata data);
@@ -19,8 +19,8 @@ contract SimpleSwapperMock is ISwapperGeneric {
     ITokenVault public TOKENVAULT;
     ICore public core;
 
-    constructor(IERC20 _mim, IERC20 _collateral, IOracle _oracle, ITokenVault _tokenVault, ICore _core) {
-        clink = _mim;
+    constructor(IERC20 _clink, IERC20 _collateral, IOracle _oracle, ITokenVault _tokenVault, ICore _core) {
+        clink = _clink;
         collateral = _collateral;
         oracle = _oracle;
         core = _core;
@@ -47,7 +47,7 @@ contract SimpleSwapperMock is ISwapperGeneric {
 
         (uint256 amountFrom,) = TOKENVAULT.withdraw(IERC20(address(from)), address(this), address(this), 0, shareFrom);
 
-        (bool updated,uint256 rate) = oracle.get(core.oracleData());
+        (,uint256 rate) = oracle.get(core.oracleData());
         uint256 toAmount;
         if (address(from) == address(clink)) {
             toAmount = amountFrom * rate / EXCHANGE_RATE_PRECISION;
@@ -68,7 +68,7 @@ contract SimpleSwapperMock is ISwapperGeneric {
         address,
         uint256,
         uint256
-    ) public override returns (uint256 shareUsed, uint256 shareReturned) {
+    ) public pure override returns (uint256 shareUsed, uint256 shareReturned) {
         return (0, 0);
     }
 }

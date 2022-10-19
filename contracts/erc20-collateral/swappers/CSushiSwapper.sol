@@ -139,7 +139,7 @@ contract CSushiSwapper is ISwapperGeneric {
         address,
         uint256,
         uint256
-    ) public override returns (uint256 shareUsed, uint256 shareReturned) {
+    ) public pure override returns (uint256 shareUsed, uint256 shareReturned) {
         return (0, 0);
     }
 }
